@@ -25,7 +25,9 @@ A peer's location is derived from this externally-observed address. The implicat
 
 \subsection{Location Assignment: A Known Sybil and Grinding Surface}
 
-Hashing the external address into $[0, 1)$ is a deliberately simple location-assignment scheme, and it is not Sybil-resistant. An attacker controlling a subnet, an IPv6 range, or a small cloud account can grind locations and place many peers in a chosen region of the ring. Within that region they can serve targeted contract requests with selected (or no) responses, and they can crowd out honest peers from acceptance under the topology rule.
+A peer's location is computed by hashing its externally-observed network address into $[0, 1)$, but the hash is taken over the address \emph{prefix} rather than the full address: the high 24 bits of an IPv4 address (so all hosts in the same /24 share a location) and the high 48 bits of an IPv6 address (the typical site-level allocation). The intent is to raise the cost of location grinding: an adversary that wants to place peers at chosen ring locations needs control of multiple distinct prefixes, not merely many hosts inside one subnet.
+
+This is a mitigation, not a defense. An attacker who can rent IP space across many /24s, draw on an IPv6 range from a friendly ISP, or vend VMs across distinct prefixes in a cloud account can still grind locations and concentrate peers in chosen regions of the ring. Within that region they can serve targeted contract requests with selected (or no) responses, and they can crowd out honest peers from acceptance under the topology rule.
 
 The platform does not solve this at the location layer. Two architectural mitigations operate at higher levels.
 
