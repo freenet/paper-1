@@ -17,7 +17,9 @@ The combination is the platform's substitute for a single end-to-end transport c
 
 \subsection{NAT Traversal and Bootstrap}
 
-Most peers operate behind consumer NAT and do not have a stable inbound address. The transport supports hole-punching: when two peers want to connect and at least one is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously \citep{ford2005peer}. The gateway, which is required to have a public IP, acts as an introducer that reports each side's externally-observed address.
+Most peers operate behind consumer NAT and do not have a stable inbound address. The transport supports hole-punching: when two peers want to connect and at least one is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously \citep{ford2005peer}. The introducer in this scheme, the peer that reports each side's externally-observed address, is whichever peer routed the connection request between them.
+
+For a brand-new peer joining the network the introducer is a gateway, which is required to have a public IP. For a peer that already has at least one connection, the introducer is one of its existing neighbors. Gateways are therefore load-bearing only during the initial join; once a peer is in the network, all subsequent connections are introduced by other peers, and the network continues to form new connections even if every gateway is offline.
 
 A peer's location is derived from this externally-observed address. The implications are discussed in the next subsection.
 
