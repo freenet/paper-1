@@ -77,8 +77,8 @@ consistency model, the platform requires each contract to expose an idempotent
 commutative merge operation (equivalently, a join-semilattice) and an
 application-defined summary/delta protocol for efficient synchronization.
 
-Contracts are placed on a one-dimensional ring by content hash and replicated on
-peers near their location. Requests are routed using a per-neighbor,
+Each contract has a location on a one-dimensional ring derived from the hash
+of its code and parameters, and is replicated on peers near that location. Requests are routed using a per-neighbor,
 distance-indexed performance model rather than topological distance alone. For
 private state, the platform provides \emph{delegates}: local WebAssembly agents
 that hold secrets on the user's device and interact with contracts and other
