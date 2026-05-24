@@ -1,0 +1,32 @@
+cff-version: 1.2.0
+message: "If you reference this paper, please cite it as below."
+title: "Freenet: A Peer-to-Peer Platform for Real-Time Decentralized Applications"
+authors:
+  - given-names: Ian
+    family-names: Clarke
+    email: ian@freenet.org
+    affiliation: The Freenet Project
+type: software
+date-released: 2026-05-24
+url: "https://freenet.org/whitepaper/"
+repository-code: "https://github.com/freenet/paper-1"
+license: CC-BY-4.0
+keywords:
+  - freenet
+  - decentralized
+  - peer-to-peer
+  - crdt
+  - distributed-systems
+  - small-world-routing
+preferred-citation:
+  type: report
+  title: "Freenet: A Peer-to-Peer Platform for Real-Time Decentralized Applications"
+  authors:
+    - given-names: Ian
+      family-names: Clarke
+      email: ian@freenet.org
+  year: 2026
+  month: 5
+  url: "https://freenet.org/whitepaper/"
+  institution:
+    name: The Freenet Project

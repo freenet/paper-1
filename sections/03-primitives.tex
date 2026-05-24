@@ -15,9 +15,9 @@ A peer's location is derived deterministically from its external network address
 
 A \emph{contract} $\contract$ is a pair $(\mathrm{code}, \mathrm{params})$, where $\mathrm{code}$ is a WebAssembly module conforming to the platform's contract interface and $\mathrm{params}$ is an opaque byte string fixed at instantiation. The contract's \emph{key} is
 \[
-  k(\contract) = H(\mathrm{code} \,\|\, \mathrm{params})
+  k(\contract) = H\bigl(H(\mathrm{code}) \,\|\, \mathrm{params}\bigr)
 \]
-for a cryptographic hash $H$. Its \emph{location} $\ell(\contract) \in [0, 1)$ is derived from $k(\contract)$ in the same way as a peer location. Each contract has a \emph{state} $\sigma \in \statespace_\contract$, replicated across peers near $\ell(\contract)$ on the ring. The contract's code defines $\statespace_\contract$, the validity predicate $\valid_\contract$, the merge operation $\merge_\contract$, and the summary/delta synchronization functions (all detailed in \cref{sec:updates}). Contracts are public: their state is readable by any peer that can route to $\ell(\contract)$.
+for a cryptographic hash $H$. The two-stage form lets a client that already holds $H(\mathrm{code})$ derive the key for a new contract from new parameters without re-hashing the full WebAssembly module, which may be several megabytes. The contract's \emph{location} $\ell(\contract) \in [0, 1)$ is derived from $k(\contract)$ in the same way as a peer location. Each contract has a \emph{state} $\sigma \in \statespace_\contract$, replicated across peers near $\ell(\contract)$ on the ring. The contract's code defines $\statespace_\contract$, the validity predicate $\valid_\contract$, the merge operation $\merge_\contract$, and the summary/delta synchronization functions (all detailed in \cref{sec:updates}). Contracts are public: their state is readable by any peer that can route to $\ell(\contract)$.
 
 \subsection{Delegates}
 
