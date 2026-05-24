@@ -17,7 +17,7 @@ The combination is the platform's substitute for a single end-to-end transport c
 
 \subsection{NAT Traversal and Bootstrap}
 
-Most peers operate behind consumer NAT and do not have a stable inbound address. The transport supports hole-punching: when two peers want to connect and at least one is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously \citep{ford2005peer}. The gateway --- which is required to have a public IP --- acts as an introducer that reports each side's externally-observed address.
+Most peers operate behind consumer NAT and do not have a stable inbound address. The transport supports hole-punching: when two peers want to connect and at least one is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously \citep{ford2005peer}. The gateway, which is required to have a public IP, acts as an introducer that reports each side's externally-observed address.
 
 A peer's location is derived from this externally-observed address. The implications are discussed in the next subsection.
 
@@ -35,9 +35,9 @@ We treat the absence of a built-in Sybil defense as a deliberate scope decision,
 
 \subsection{Delegates: A Trust Boundary Around Secrets}
 
-Contracts hold public state. Applications also have private state --- a user's signing keys, a private contact list, the decryption material for an end-to-end encrypted inbox --- that should never be replicated and should be accessible only through controlled interfaces. The platform's primitive for this is the delegate.
+Contracts hold public state. Applications also have private state (a user's signing keys, a private contact list, the decryption material for an end-to-end encrypted inbox) that should never be replicated and should be accessible only through controlled interfaces. The platform's primitive for this is the delegate.
 
-A delegate is a WebAssembly module running inside the local Freenet Core on a user's device. It holds private secret state, sandboxed by the core. Other components --- user interfaces, contracts, other delegates --- can interact with it only by sending messages. The core attaches a verified sender identifier to each inbound message, so the delegate's policy can be ``only respond to messages from UI X, originating from contract Y.''
+A delegate is a WebAssembly module running inside the local Freenet Core on a user's device. It holds private secret state, sandboxed by the core. Other components (user interfaces, contracts, other delegates) can interact with it only by sending messages. The core attaches a verified sender identifier to each inbound message, so the delegate's policy can be ``only respond to messages from UI X, originating from contract Y.''
 
 The trust boundary is therefore platform-enforced rather than conventional. Traditional in-process encapsulation (a ``private'' field on an object) is honored only by code that chooses to honor it; the same address space affords access to memory, file system, and undocumented APIs. A delegate's secret state is not addressable from any other code on the device. The only way to extract a secret from a delegate is to convince the delegate, on the basis of sender identity and message contents, that releasing the secret is allowed.
 

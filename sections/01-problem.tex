@@ -1,7 +1,7 @@
 \section{The Problem}
 \label{sec:problem}
 
-The applications that dominate the modern web --- group chat, social feeds, collaborative documents, identity, reputation --- run on a small number of centralized service providers. Communication, computation, and storage all flow through their infrastructure. So does the moderation, the surveillance, and the de-platforming risk. The architectural question this paper addresses is how to recover the application-level functionality of those services without recreating the central choke points.
+The modern web is built on infrastructure owned by a small number of companies. Group chat, social feeds, collaborative documents, identity, and reputation all run on it. So does the power to moderate, surveil, and remove the people who use it. This paper describes a peer-to-peer platform aimed at providing the same kinds of services without the same single points of control.
 
 Two broad families of decentralized systems have been deployed at meaningful scale, and neither is a good substrate for interactive applications.
 
@@ -11,4 +11,4 @@ Two broad families of decentralized systems have been deployed at meaningful sca
 
 The gap between these is large. A chat room does not need a global linear order on every message; it needs replicas that converge to the same content. A reputation system does not need every reader to download every signed record; it needs efficient summary-driven sync. A collaborative document does not need consensus on each keystroke; it needs an algebra of merge that the application defines.
 
-This paper describes a peer-to-peer platform built around that observation. Applications carry their own merge semantics, expressed as sandboxed WebAssembly. The platform handles routing, replication, synchronization, transport, and sandboxing generically over whatever algebra the application supplies, alongside a separate primitive --- the delegate --- for private state and sensitive operations that should not be replicated. The result targets a class of decentralized applications that has historically been awkward to build on either content-addressed or blockchain substrates.
+This paper describes a peer-to-peer platform built around that observation. Applications carry their own merge semantics, expressed as sandboxed WebAssembly. The platform handles routing, replication, synchronization, transport, and sandboxing generically over whatever algebra the application supplies, alongside a separate primitive (the delegate) for private state and sensitive operations that should not be replicated. The result targets a class of decentralized applications that has historically been awkward to build on either content-addressed or blockchain substrates.
