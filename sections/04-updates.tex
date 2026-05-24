@@ -9,7 +9,8 @@ This section describes the algebra each contract carries, the synchronization pr
 \label{def:algebra}
 A contract $\contract$ defines:
 \begin{enumerate}[leftmargin=1.4em, itemsep=2pt, topsep=2pt]
-  \item a \emph{state space} $\statespace_\contract \subseteq \{0,1\}^*$ of byte strings, with a \emph{validity predicate} $\valid_\contract : \{0,1\}^* \to \{\bot, \top\}$;
+  \item a \emph{state space} $\statespace_\contract$ (an abstract set; the wire encoding is a byte string and the contract code defines the encoding);
+  \item a \emph{validity predicate} $\valid_\contract : \statespace_\contract \to \{\bot, \top\}$;
   \item an \emph{identity element} $e_\contract \in \statespace_\contract$ with $\valid_\contract(e_\contract) = \top$;
   \item a binary \emph{merge} operation $\merge_\contract : \statespace_\contract \times \statespace_\contract \to \statespace_\contract$, which is associative, commutative, and idempotent, with $e_\contract$ as identity.
 \end{enumerate}
@@ -21,15 +22,10 @@ The validity predicate is checked at the boundary. A peer that receives a candid
 
 An \emph{update} is itself an element of $\statespace_\contract$. When a peer holding state $\sigma$ receives an update $u$, it computes $\sigma' = \sigma \merge_\contract u$, subject to validity. There is no separate notion of operation: the algebra of state is the algebra of change.
 
-\begin{proposition}[Convergence]
-\label{prop:convergence}
-Let $u_1, \ldots, u_n \in \statespace_\contract$ be a finite multiset of valid updates and let $\sigma_0 \in \statespace_\contract$ be a starting state. For any permutation $\pi$,
-\[
-  \sigma_0 \merge_\contract u_{\pi(1)} \merge_\contract \cdots \merge_\contract u_{\pi(n)} \;=\; \sigma_0 \merge_\contract u_1 \merge_\contract \cdots \merge_\contract u_n.
-\]
-\end{proposition}
-
-\noindent The argument is immediate from associativity and commutativity. Idempotence further makes duplicate delivery harmless. Together these properties are the sufficient conditions for the Strong Eventual Consistency theorem of Shapiro et al.\ \citep{shapiro2011crdt}: peers that have delivered the same set of updates converge regardless of order or repetition.
+\begin{remark}[Convergence]
+\label{rem:convergence}
+For a finite multiset of valid updates $u_1, \ldots, u_n \in \statespace_\contract$ and a starting state $\sigma_0$, the merged result $\sigma_0 \merge_\contract u_{\pi(1)} \merge_\contract \cdots \merge_\contract u_{\pi(n)}$ is independent of the permutation $\pi$ by associativity and commutativity, and idempotence makes duplicate delivery harmless. Together these are the sufficient conditions for the Strong Eventual Consistency theorem of Shapiro et al.\ \citep{shapiro2011crdt}: peers that have delivered the same set of valid updates converge regardless of order or repetition. The platform's specific contribution here is not the convergence theorem but the choice to let each contract supply its own monoid, with the consequences described in the rest of this section.
+\end{remark}
 
 \subsection{Worked Examples}
 
@@ -43,13 +39,15 @@ Let $u_1, \ldots, u_n \in \statespace_\contract$ be a finite multiset of valid u
 
 A bounded variant of the signed log (say, ``keep the most recent $N$ records'') is straightforward but requires care: the eviction function must be a deterministic function of the merged set, not of the order in which records arrived, or idempotence is lost. We treat this as a contract-author obligation rather than a platform-enforced property.
 
-\subsection{The Generalization over Fixed-Lattice CRDTs}
+\subsection{Where This Sits in the Design Space}
 
-A conventional CRDT runtime offers a closed catalogue of lattices. Each application chooses one. The contract interface inverts this: the application supplies the lattice. Two consequences follow.
+Application-defined merge is not itself a new idea: Bayou \citep{terry1995bayou} introduced application-supplied merge procedures in 1995, and CouchDB, Riak, and Git's merge drivers all expose conflict resolution to application code. What is new here is the specific combination of constraints under which the application supplies it.
 
-First, the platform cannot statically verify that a contract's $\merge_\contract$ is associative, commutative, and idempotent. A contract that violates these properties will exhibit non-converging replicas. Because the contract is content-addressed, however, any deviation is attributable to a specific module; a contract that does not converge is bug-compatible with the rest of the network only insofar as users choose to deploy it.
+Compared to Bayou's lineage of arbitrary procedural merge, contracts are more constrained: the merge code is content-addressed (so the merge identity binds to the data identity and cannot be silently switched), executes in a sandbox under fuel and memory bounds (because untrusted peers run it), and must satisfy the idempotent-commutative-monoid algebra (so the platform can make a convergence promise without inspecting the code). The platform gives up Bayou's flexibility in exchange for the convergence guarantee and the peer-to-peer trust model.
 
-Second, an application can choose merge semantics tuned to its workload. The consistency requirements of a chat room, a reputation contract, and a public file feed are very different, and bundling all of them into a single lattice family would either force one to pay another's cost or leave several of them unimplementable.
+Compared to fixed-lattice CRDT frameworks (Automerge \citep{automerge}, Y.js \citep{yjs}, Antidote \citep{akkoorath2016cure}), contracts are more flexible: the application supplies its own lattice rather than composing from a closed catalogue. We have found this matters in practice. The consistency requirements of a chat room, a reputation contract, and a public file feed are different enough that a fixed catalogue forces several of them to either pay another's cost or be unimplementable. The price of the flexibility is that the platform cannot statically verify the algebraic properties; a contract that violates them will fail to converge, and the runtime detects this as a downstream symptom rather than as a structural error.
+
+The platform's position is therefore a middle path between the two: more flexible than the fixed-lattice frameworks, more constrained than Bayou. The summary/delta interface developed in the next two subsections extends the same logic from the merge function itself to the synchronization protocol, which is the part of the design we view as the strongest engineering generalization.
 
 \subsection{Summary/Delta Synchronization}
 
@@ -91,13 +89,13 @@ Two peers $A$ and $B$ reconcile their states for a contract $\contract$ as follo
   \item $B$ computes $\delta_B = \getdelta_\contract(\sigma_B, s_A)$ and sends $\delta_B$ to $A$. $A$ applies the delta: $\sigma_A \gets \applydelta_\contract(\sigma_A, \delta_B)$.
 \end{enumerate}
 
-The protocol is symmetric: $B$ runs the same exchange in the other direction. In practice the two directions are interleaved over a single connection. Bandwidth is bounded by $|s_A| + |s_B| + |\delta_A| + |\delta_B|$, each of which is application-defined.
+The protocol is symmetric: $B$ runs the same exchange in the other direction. In practice the two directions are interleaved over a single connection. Bandwidth per reconciliation round is bounded by $|s_A| + |s_B| + |\delta_A| + |\delta_B|$, each of which is application-defined. Contracts that use approximate summaries may require multiple rounds before replicas fully converge (see the next subsection), in which case the total bandwidth is the sum of these per-round bounds.
 
 \subsection{Malformed Summaries and Malicious Deltas}
 
 The honest-but-stale case is the easy one. Two cases require more care.
 
-\paragraph{Approximate summaries.} A summary type such as a Bloom filter has false positives: $B$ may believe $A$ already has a record that in fact $A$ does not. In the bare protocol, the record is then not included in the delta and the two replicas remain divergent. Contracts that use approximate summaries must therefore either fall back to a more precise second round when divergence is suspected, or accept the false-positive rate as part of their convergence story (relying on later rounds to repair). The platform offers no built-in fallback; the contract designs the round structure.
+\paragraph{Approximate summaries.} A summary type such as a Bloom filter has false positives: $B$ may believe $A$ already has a record that in fact $A$ does not. In the bare protocol, the record is then not included in the delta and the two replicas remain divergent. Contracts that use approximate summaries must therefore either fall back to a more precise second round when divergence is suspected, or accept the false-positive rate as part of their convergence story, relying on subsequent reconciliation rounds (driven by later updates, subscription renewals, or explicit re-sync) to eventually repair the divergence. The platform offers no built-in fallback; the contract designs the round structure. Diagnosing when the round structure is buggy or insufficient is one of the open problems noted in \cref{sec:status}.
 
 \paragraph{Malicious peers.} A peer that supplies a deliberately malformed summary, or returns a delta that violates the validity predicate, is treated like any other source of invalid state. The receiver applies $\valid_\contract$ to the merged result; if the result fails validity, the delta is rejected. A more subtle attack is for a peer to supply a delta that is valid but withholding (claiming to be up to date when it is not). The protocol cannot distinguish such a peer from one that has simply not yet received the missing updates; the replication factor across multiple peers near $\ell(\contract)$ is the structural defense, not the sync protocol itself.
 

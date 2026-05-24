@@ -7,7 +7,7 @@ This section names the artifacts that appear in the rest of the paper and fixes 
 
 A \emph{peer} is an instance of the Freenet Core running on some host. Each peer $p$ has a \emph{location} $\ell(p) \in [0, 1)$. Locations live on a one-dimensional ring with wrap-around distance
 \[
-  d(x, y) = \min\bigl(|x - y|,\, 1 - |x - y|\bigr).
+  d(x, y) \;=\; \min\!\left\{|x - y|,\ 1 - |x - y|\right\}.
 \]
 A peer's location is derived deterministically from its external network address; the exact derivation and its security implications are discussed in \cref{sec:trust}. Each peer maintains a set of \emph{neighbor} connections, bounded between configurable minimum and maximum sizes (typically 25 and 200). Neighbor relations are reorganized over time by the topology rule described in \cref{sec:routing}.
 
