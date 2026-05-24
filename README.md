@@ -30,6 +30,12 @@ bibtex → pdflatex → pdflatex` and produces `main.pdf`.
 - `.github/workflows/build.yml` — CI build that publishes the
   `latest` release with the PDF attached
 
+## License
+
+[Creative Commons Attribution 4.0 International](LICENSE) (CC-BY 4.0). You may
+copy, redistribute, and adapt the material with attribution. See `LICENSE` for
+the full text.
+
 ## Contributing
 
 Pull requests welcome. The workflow runs `pdflatex` on every PR, so a green
