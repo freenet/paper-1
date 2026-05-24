@@ -1,0 +1,73 @@
+\section{Implementation Status and Open Problems}
+\label{sec:status}
+
+This section describes the reference implementation, makes the implementation status of each major mechanism explicit, and lists the architectural questions we view as open.
+
+\subsection{Implementation}
+
+The Freenet Core is implemented in Rust as an asynchronous \texttt{tokio}-based runtime. Contracts and delegates execute inside Wasmtime \citep{wasmtime}; both run under per-instance fuel limits and explicit memory bounds so that a runaway or malicious module cannot exhaust the host. Contract state is persisted through a pluggable store layer with implementations on top of \texttt{redb} \citep{redb} and SQLite.
+
+The runtime is organized as a single central event loop, a \texttt{tokio::select!} over inbound transport packets, client API events, operation timers, and background tasks, that dispatches into per-operation state machines. The single-coordinator design simplifies reasoning about partial state but limits the throughput of a single peer to what one event-loop thread can sustain. So far this has not been the binding constraint in deployment.
+
+\paragraph{Deterministic simulation testing.} A peer-to-peer system is hard to test by ordinary means: many bugs in routing, congestion, or convergence appear only in specific multi-peer interleavings that are difficult to reproduce. The Core ships with a deterministic simulation harness built on Turmoil \citep{turmoil}: virtual time, a seeded global RNG, an in-memory socket implementation, and fault-injection knobs for loss, latency, partitions, and reorderings. Tests run the entire network in a single deterministic process and replay bit-for-bit from a seed. Most non-trivial routing, subscription, and contract-execution bugs we have found were first reproduced in simulation.
+
+\paragraph{Content-addressed components.} Contracts, delegates, and UI bundles are all addressed by hash. This pushes a lot of complexity off the platform: there is no version negotiation, no upgrade protocol, no need for the platform to understand application semantics during deployment. A new version is published under a new key; the old key continues to work as long as anyone hosts it.
+
+\subsection{Implementation Status of Each Mechanism}
+
+The following table is the current honest status of the mechanisms described in this paper. ``Deployed'' means present in the production runtime and exercised on the live network; ``Implemented'' means present in the runtime but not yet broadly exercised at scale; ``Experimental'' means available as a build-time option but not in production; ``Open'' means designed or partially designed but not implemented.
+
+\begin{center}
+\small
+\begin{tabular}{p{0.42\textwidth}p{0.18\textwidth}p{0.32\textwidth}}
+\toprule
+Mechanism & Status & Notes \\
+\midrule
+Small-world ring topology & Deployed & Live network $\approx 440$ active peers \\
+Greedy forwarding + HTL fallback & Deployed & HTL cap = 10, random walk above 7 \\
+Accept-only-at-terminus topology rule & Deployed & \\
+Adaptive isotonic-regression routing & Deployed & Per-neighbor distance-indexed model \\
+Summary/delta synchronization & Deployed & Per-contract, application-defined \\
+Subscription trees with leases & Deployed & 8-min lease, 2-min renewal \\
+Contract WebAssembly execution & Deployed & Wasmtime, fuel + memory limits \\
+Delegates (local, secret state) & Deployed & Used by River chat \citep{river} \\
+Delegate cross-device sync via shared-secret contract & Implemented & \\
+NAT hole-punching transport & Deployed & UDP, X25519 + AEAD \\
+Fixed-rate congestion control & Deployed & Production default \\
+LEDBAT++ congestion control & Experimental & Did not meet our requirements in initial trials; not in production \\
+BBR-style congestion control & Experimental & Build-time option, not the default \\
+Deterministic simulation testing & Deployed & Turmoil-based \citep{turmoil} \\
+Per-peer resource limits (bandwidth, storage) & Deployed & User-configured budgets \\
+Sybil-resistant peer identity / location & Open & Defenses are application-layer (see \cref{sec:trust}) \\
+Network-level incentive / abuse layer & Open & Application-layer reputation contracts are the intended mechanism \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The single biggest gap between this paper's narrative and the deployed system is congestion control. The platform supports pluggable congestion controllers but the deployed default is a token-bucket fixed-rate scheme. LEDBAT++ and BBR variants exist in the codebase as alternatives, but neither has yet been adapted to the workload satisfactorily. Real congestion control across heterogeneous peer-to-peer links remains open work.
+
+\subsection{Where the Platform Fits}
+
+The combination of contract-defined merge, summary/delta sync, small-world routing, and delegates is well-matched to applications whose consistency requirements are conflict-mergeable in some application-defined sense. Group chat, collaborative documents, social feeds, reputation systems, asynchronous email-like inboxes, and identity directories are all in the well-fit class. A working chat implementation \citep{river} and an anonymous identity scheme \citep{ghostkey} are deployed against the live network.
+
+\subsection{Where the Platform Does Not Fit}
+
+Several application classes do not fit the model gracefully, and we want to be explicit about them.
+
+\paragraph{Strictly linearizable transactions.} A defense against double-spending fungible tokens requires that two attempts to spend the same balance cannot both succeed. The merge model cannot express ``one of these updates is rejected unconditionally''; merge is total. Applications that need a strong-consistency primitive must either contain the inconsistency inside a contract whose validity predicate detects and rejects the second update (which forces the conflict into application code) or layer an auxiliary consensus mechanism on top of the platform.
+
+\paragraph{Abuse-resistant open posting.} A purely-open contract is simple to write as a set under union and equally simple to flood. Practical contracts in this class restrict writes to signed records by approved keys, charge a proof-of-work fee per update, or require credentials issued by a reputation contract. The platform provides no built-in spam defense.
+
+\paragraph{Coordinated DoS.} Per-peer resource limits protect a peer against a single misbehaving neighbor, not against coordinated traffic from many neighbors using cheap identities. Defenses here probably require accounting that persists across identities, which is the open incentive layer noted above.
+
+\subsection{Open Problems}
+
+We treat the following as genuinely open and intend them as subjects of future work or empirical evaluation.
+
+\begin{enumerate}[leftmargin=1.4em, itemsep=2pt]
+  \item \textbf{Scaling characterization.} The single 24-hour data point in \cref{sec:routing-measurement} is consistent with logarithmic-diameter routing at the deployed network size. A real characterization requires scanning $N$ across orders of magnitude. We do not currently have the deployment to do this; controlled simulation studies are an interim alternative.
+  \item \textbf{Failure modes of contract-defined merge.} A contract whose merge is not actually associative or idempotent does not converge; the platform's handling of this is currently to allow the divergence to be observable but not to take corrective action. Better diagnostics --- and, where feasible, contract-level invariants checked at the platform layer --- are open work.
+  \item \textbf{Congestion control.} As above. The current fixed-rate default is a deliberate choice not to ship something we cannot tune correctly, not an endorsement of fixed-rate as the right answer.
+  \item \textbf{Sybil-resistant identity.} The application-layer approach has examples (Ghost Keys) but no clean general story; this is the recurrent question for every decentralized platform, and we do not claim to have solved it.
+  \item \textbf{Incentive / abuse layer.} How a network as a whole resists coordinated denial of service without a centralized authority, while still allowing low-friction joining, is the work that determines whether the network grows past a small community.
+\end{enumerate}

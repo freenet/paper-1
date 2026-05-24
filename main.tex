@@ -33,7 +33,7 @@
   linkcolor=black,
   citecolor=black,
   urlcolor=black,
-  pdftitle={Freenet: A Decentralized Application Platform Built on Contract-Defined Commutative Monoids over a Small-World Network},
+  pdftitle={Freenet: A Peer-to-Peer Platform for Real-Time Decentralized Applications},
   pdfauthor={The Freenet Project}
 }
 
@@ -59,8 +59,8 @@
 
 % --- Title ---------------------------------------------------------------
 \title{\textbf{Freenet}\\[2pt]
-\large A Decentralized Application Platform Built on\\
-Contract-Defined Commutative Monoids over a Small-World Network}
+\large A Peer-to-Peer Platform for Real-Time Decentralized Applications\\[2pt]
+\normalsize\itshape Idempotent Commutative Monoids and Adaptive Small-World Routing}
 \author{The Freenet Project\\[2pt]\small\texttt{https://freenet.org}}
 \date{\today}
 
@@ -69,42 +69,41 @@ Contract-Defined Commutative Monoids over a Small-World Network}
 
 \begin{abstract}
 \noindent
-Freenet is a decentralized application platform built on a peer-to-peer network
-of programmable, eventually-consistent key-value cells called \emph{contracts}.
-Each contract is a WebAssembly module that defines its own
-\emph{commutative monoid} on application state, together with a generic
-summary/delta synchronization protocol that lets peers efficiently reconcile
-divergent replicas without global coordination. Contracts are located on a
-one-dimensional ring by content hash and reached using \emph{adaptive small-world
-routing}: peers learn a distance-indexed performance model for each neighbor and
-forward each request to the neighbor expected to deliver the answer fastest, not
-necessarily the neighbor topologically closest to the destination. The
-small-world topology itself is constructed by a single rule --- \emph{accept a
-connection only at the routing terminus} --- which causes local clustering and
-short paths to emerge without explicit long-link construction. Alongside
-public contract state, Freenet provides \emph{delegates}: actor-style
-WebAssembly agents that hold private secrets on a user's device and respond
-only to authenticated messages. The result is a platform that supports
-real-time, interactive decentralized applications --- such as group chat,
-collaborative documents, and reputation systems --- with eventual consistency
-defined by the application itself rather than by the network.
+Freenet is a peer-to-peer platform for building real-time decentralized
+applications without global consensus. Its core abstraction is a \emph{contract}:
+a WebAssembly module that defines both the public state of an application and the
+merge semantics used to reconcile replicas. Rather than imposing a single
+consistency model, the platform requires each contract to expose an idempotent
+commutative merge operation (equivalently, a join-semilattice) and an
+application-defined summary/delta protocol for efficient synchronization.
+
+Contracts are placed on a one-dimensional ring by content hash and replicated on
+peers near their location. Requests are routed using a per-neighbor,
+distance-indexed performance model rather than topological distance alone. For
+private state, the platform provides \emph{delegates}: local WebAssembly agents
+that hold secrets on the user's device and interact with contracts and other
+software through attributed messages.
+
+This architecture targets a class of decentralized applications --- group chat,
+collaborative documents, social feeds, reputation systems --- where availability
+and application-defined convergence are preferable to global linearizability.
+The paper describes the architecture as currently implemented in the
+freenet-core reference runtime, summarizes a 24-hour live-network measurement of
+routing path lengths, and is explicit about which mechanisms are deployed,
+which remain experimental, and which are open problems.
 \end{abstract}
 
 \vspace{0.5em}
 
-\input{sections/01-introduction.tex}
-\input{sections/02-system-model.tex}
-\input{sections/03-monoids.tex}
-\input{sections/04-sync.tex}
-\input{sections/05-small-world.tex}
-\input{sections/06-adaptive-routing.tex}
-\input{sections/07-transport.tex}
-\input{sections/08-delegates.tex}
-\input{sections/09-operations.tex}
-\input{sections/10-implementation.tex}
-\input{sections/11-discussion.tex}
-\input{sections/12-related-work.tex}
-\input{sections/13-conclusion.tex}
+\input{sections/01-problem.tex}
+\input{sections/02-thesis.tex}
+\input{sections/03-primitives.tex}
+\input{sections/04-updates.tex}
+\input{sections/05-routing.tex}
+\input{sections/06-trust.tex}
+\input{sections/07-status.tex}
+\input{sections/08-related.tex}
+\input{sections/09-conclusion.tex}
 
 \bibliographystyle{plainnat}
 \bibliography{refs}

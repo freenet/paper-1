@@ -1,0 +1,42 @@
+\section{Core Primitives}
+\label{sec:primitives}
+
+This section names the artifacts that appear in the rest of the paper and fixes notation.
+
+\subsection{Peers and the Ring}
+
+A \emph{peer} is an instance of the Freenet Core running on some host. Each peer $p$ has a \emph{location} $\ell(p) \in [0, 1)$. Locations live on a one-dimensional ring with wrap-around distance
+\[
+  d(x, y) = \min\bigl(|x - y|,\, 1 - |x - y|\bigr).
+\]
+A peer's location is derived deterministically from its external network address; the exact derivation and its security implications are discussed in \cref{sec:trust}. Each peer maintains a set of \emph{neighbor} connections, bounded between configurable minimum and maximum sizes (typically 25 and 200). Neighbor relations are reorganized over time by the topology rule described in \cref{sec:routing}.
+
+\subsection{Contracts}
+
+A \emph{contract} $\contract$ is a pair $(\mathrm{code}, \mathrm{params})$, where $\mathrm{code}$ is a WebAssembly module conforming to the platform's contract interface and $\mathrm{params}$ is an opaque byte string fixed at instantiation. The contract's \emph{key} is
+\[
+  k(\contract) = H(\mathrm{code} \,\|\, \mathrm{params})
+\]
+for a cryptographic hash $H$. Its \emph{location} $\ell(\contract) \in [0, 1)$ is derived from $k(\contract)$ in the same way as a peer location. Each contract has a \emph{state} $\sigma \in \statespace_\contract$, replicated across peers near $\ell(\contract)$ on the ring. The contract's code defines $\statespace_\contract$, the validity predicate $\valid_\contract$, the merge operation $\merge_\contract$, and the summary/delta synchronization functions (all detailed in \cref{sec:updates}). Contracts are public: their state is readable by any peer that can route to $\ell(\contract)$.
+
+\subsection{Delegates}
+
+A \emph{delegate} is a WebAssembly module that runs on a single user's device, inside the local Freenet Core. It holds private \emph{secret state} (sandboxed by the core) and responds to messages from user interfaces, contracts, and other delegates. The core attaches a verified sender identifier to every inbound message, so a delegate can apply policy based on sender identity in addition to message content. Delegates are local; they do not appear on the ring. The trust boundary they enforce and the cross-device replication story are described in \cref{sec:trust}.
+
+\subsection{User Interfaces}
+
+A \emph{user interface} is a web frontend (HTML, JavaScript, WebAssembly) delivered by a contract whose state encodes the application bundle. User interfaces run in the browser and communicate with the local core over a WebSocket API. They reach contracts and delegates only through that local core. They are not a distinct kind of network-visible artifact: from the platform's perspective, the bundle is just contract state with a particular MIME type.
+
+\subsection{Operations}
+
+A small set of operations connect these artifacts. We describe them informally here; their detailed lifecycles appear in \cref{sec:routing}.
+
+\begin{description}[leftmargin=1.4em, style=nextline, itemsep=2pt]
+  \item[\textsf{PUT}] Publish a contract: insert or update its state at the peers near $\ell(\contract)$.
+  \item[\textsf{GET}] Retrieve a contract's current state by key.
+  \item[\textsf{UPDATE}] Submit an update to a contract. The update is merged into existing replicas using the contract's merge function and propagated outward through the subscription tree.
+  \item[\textsf{SUBSCRIBE}] Register interest in future state changes to a contract.
+  \item[\textsf{CONNECT}] Establish a peering relationship with the network as a new node.
+\end{description}
+
+\textsf{PUT}, \textsf{GET}, \textsf{UPDATE}, and \textsf{SUBSCRIBE} all route over the ring; their destination is $\ell(\contract)$. \textsf{CONNECT} is the bootstrap operation by which a fresh peer joins the topology.

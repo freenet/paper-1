@@ -1,0 +1,118 @@
+\section{How Updates Move}
+\label{sec:updates}
+
+This section describes the algebra each contract carries, the synchronization protocol that propagates it efficiently across replicas, and the subscription tree along which updates flow.
+
+\subsection{Contract State as an Idempotent Commutative Monoid}
+
+\begin{definition}[Contract state algebra]
+\label{def:algebra}
+A contract $\contract$ defines:
+\begin{enumerate}[leftmargin=1.4em, itemsep=2pt, topsep=2pt]
+  \item a \emph{state space} $\statespace_\contract \subseteq \{0,1\}^*$ of byte strings, with a \emph{validity predicate} $\valid_\contract : \{0,1\}^* \to \{\bot, \top\}$;
+  \item an \emph{identity element} $e_\contract \in \statespace_\contract$ with $\valid_\contract(e_\contract) = \top$;
+  \item a binary \emph{merge} operation $\merge_\contract : \statespace_\contract \times \statespace_\contract \to \statespace_\contract$, which is associative, commutative, and idempotent, with $e_\contract$ as identity.
+\end{enumerate}
+\end{definition}
+
+An idempotent commutative monoid is equivalently a join-semilattice; the partial order is $a \sqsubseteq b \iff a \merge_\contract b = b$. This is precisely the algebraic structure of a state-based CRDT \citep{shapiro2011crdt}. We use the monoid presentation because it foregrounds the operational property the platform relies on: peers can merge each other's state at any time, in any order, with any multiplicity, and arrive at the same result.
+
+The validity predicate is checked at the boundary. A peer that receives a candidate state $\sigma$ with $\valid_\contract(\sigma) = \bot$ rejects it and never merges it into its local replica. Validity typically encodes integrity invariants beyond what the type system enforces, for example ``every record in the log carries a valid signature by an authorized key.''
+
+An \emph{update} is itself an element of $\statespace_\contract$. When a peer holding state $\sigma$ receives an update $u$, it computes $\sigma' = \sigma \merge_\contract u$, subject to validity. There is no separate notion of operation: the algebra of state is the algebra of change.
+
+\begin{proposition}[Convergence]
+\label{prop:convergence}
+Let $u_1, \ldots, u_n \in \statespace_\contract$ be a finite multiset of valid updates and let $\sigma_0 \in \statespace_\contract$ be a starting state. For any permutation $\pi$,
+\[
+  \sigma_0 \merge_\contract u_{\pi(1)} \merge_\contract \cdots \merge_\contract u_{\pi(n)} \;=\; \sigma_0 \merge_\contract u_1 \merge_\contract \cdots \merge_\contract u_n.
+\]
+\end{proposition}
+
+\noindent The argument is immediate from associativity and commutativity. Idempotence further makes duplicate delivery harmless. Together these properties are the sufficient conditions for the Strong Eventual Consistency theorem of Shapiro et al.\ \citep{shapiro2011crdt}: peers that have delivered the same set of updates converge regardless of order or repetition.
+
+\subsection{Worked Examples}
+
+\paragraph{Monotone counter.} $\statespace = \mathbb{N}$, $\merge = \max$, $e = 0$. The partial order is the usual $\leq$.
+
+\paragraph{Last-writer-wins register.} $\statespace = V \times \mathbb{N} \times H$, where $V$ is the value type, $\mathbb{N}$ a Lamport-style timestamp, and $H$ a tiebreaker hash. Merge is lexicographic max on the (timestamp, hash) pair.
+
+\paragraph{Signed log.} $\statespace$ is a finite set of records, each record carrying a signature by an authorized key. $\merge = \cup$, $e = \emptyset$. Validity rejects any state containing a record whose signature does not verify against a key listed in $\mathrm{params}$.
+
+\paragraph{Observed-remove set.} $\statespace = (E, T)$ where $E$ is a set of $(\mathrm{elem}, \mathrm{id})$ pairs and $T$ a set of $\mathrm{id}$s that have been tombstoned. $\merge$ is pairwise union; the materialized set is $\{\mathrm{elem} : (\mathrm{elem}, \mathrm{id}) \in E,\ \mathrm{id} \notin T\}$.
+
+A bounded variant of the signed log (say, ``keep the most recent $N$ records'') is straightforward but requires care: the eviction function must be a deterministic function of the merged set, not of the order in which records arrived, or idempotence is lost. We treat this as a contract-author obligation rather than a platform-enforced property.
+
+\subsection{The Generalization over Fixed-Lattice CRDTs}
+
+A conventional CRDT runtime offers a closed catalogue of lattices. Each application chooses one. The contract interface inverts this: the application supplies the lattice. Two consequences follow.
+
+First, the platform cannot statically verify that a contract's $\merge_\contract$ is associative, commutative, and idempotent. A contract that violates these properties will exhibit non-converging replicas. Because the contract is content-addressed, however, any deviation is attributable to a specific module; a contract that does not converge is bug-compatible with the rest of the network only insofar as users choose to deploy it.
+
+Second, an application can choose merge semantics tuned to its workload. The consistency requirements of a chat room, a reputation contract, and a public file feed are very different, and bundling all of them into a single lattice family would either force one to pay another's cost or leave several of them unimplementable.
+
+\subsection{Summary/Delta Synchronization}
+
+Pairwise merge is sufficient for convergence but, on its own, would require peers to ship full state when reconciling. For non-trivial contracts this is prohibitive. The platform therefore extends the contract interface with three additional functions that allow peers to exchange only the difference between their states.
+
+\begin{definition}[Sync interface]
+\label{def:sync}
+In addition to the algebra of \cref{def:algebra}, a contract provides
+\begin{align*}
+  \summarize_\contract &: \statespace_\contract \to \Sigma_\contract,\\
+  \getdelta_\contract &: \statespace_\contract \times \Sigma_\contract \to \Delta_\contract,\\
+  \applydelta_\contract &: \statespace_\contract \times \Delta_\contract \to \statespace_\contract,
+\end{align*}
+where $\Sigma_\contract$ and $\Delta_\contract$ are contract-defined byte-string types.
+\end{definition}
+
+The summary type $\Sigma_\contract$ is intended to be much smaller than full state. For a signed log it might be the set of record identifiers, or a Merkle root over them; for a counter it might be the counter's value; for a large observed-remove set it might be a Bloom filter, or a pair of Bloom filters over $E$ and $T$.
+
+For the two-step protocol below to be useful, the contract author is required to ensure that $\getdelta$ produces something that, when applied, dominates the other peer's state in the partial order:
+
+\begin{property}[Sync soundness]
+\label{prop:sync}
+For all $\sigma_A, \sigma_B \in \statespace_\contract$, let $s = \summarize_\contract(\sigma_B)$ and $\delta = \getdelta_\contract(\sigma_A, s)$. Then
+\[
+  \applydelta_\contract(\sigma_B, \delta) \;\merge_\contract\; \sigma_A
+  \;=\;
+  \applydelta_\contract(\sigma_B, \delta).
+\]
+\end{property}
+
+\noindent Equivalently, applying $\delta$ at $\sigma_B$ brings $\sigma_B$ at least as far up the lattice as $\sigma_A$ would have if merged in full. The platform does not verify this property; the contract is responsible for it.
+
+\subsection{The Two-Step Sync Protocol}
+
+Two peers $A$ and $B$ reconcile their states for a contract $\contract$ as follows:
+
+\begin{enumerate}[leftmargin=1.4em, itemsep=2pt]
+  \item $A$ computes $s_A = \summarize_\contract(\sigma_A)$ and sends $s_A$ to $B$.
+  \item $B$ computes $\delta_B = \getdelta_\contract(\sigma_B, s_A)$ and sends $\delta_B$ to $A$. $A$ applies the delta: $\sigma_A \gets \applydelta_\contract(\sigma_A, \delta_B)$.
+\end{enumerate}
+
+The protocol is symmetric: $B$ runs the same exchange in the other direction. In practice the two directions are interleaved over a single connection. Bandwidth is bounded by $|s_A| + |s_B| + |\delta_A| + |\delta_B|$, each of which is application-defined.
+
+\subsection{Malformed Summaries and Malicious Deltas}
+
+The honest-but-stale case is the easy one. Two cases require more care.
+
+\paragraph{Approximate summaries.} A summary type such as a Bloom filter has false positives: $B$ may believe $A$ already has a record that in fact $A$ does not. In the bare protocol, the record is then not included in the delta and the two replicas remain divergent. Contracts that use approximate summaries must therefore either fall back to a more precise second round when divergence is suspected, or accept the false-positive rate as part of their convergence story (relying on later rounds to repair). The platform offers no built-in fallback; the contract designs the round structure.
+
+\paragraph{Malicious peers.} A peer that supplies a deliberately malformed summary, or returns a delta that violates the validity predicate, is treated like any other source of invalid state. The receiver applies $\valid_\contract$ to the merged result; if the result fails validity, the delta is rejected. A more subtle attack is for a peer to supply a delta that is valid but withholding (claiming to be up to date when it is not). The protocol cannot distinguish such a peer from one that has simply not yet received the missing updates; the replication factor across multiple peers near $\ell(\contract)$ is the structural defense, not the sync protocol itself.
+
+\subsection{Subscription Trees}
+
+Once a contract is published, peers near $\ell(\contract)$ host its state and additional peers register as subscribers. A subscription forms a soft-state link from the subscriber back toward the contract's home location; collectively these links form a tree rooted near $\ell(\contract)$. An update arriving at any node of the tree is merged into local state and propagated outward along the tree, with each pairwise hop using the summary/delta protocol above.
+
+Because $\merge_\contract$ is commutative, simultaneous updates injected at multiple points of the tree do not require coordination. They propagate along the edges, meet at internal nodes, and merge; the order in which different updates arrive at a given node does not affect its final state. Subscriptions are lease-based: in the deployed configuration a lease lasts 8 minutes and is renewed every 2 minutes by a background task. A subscriber whose lease expires must re-subscribe. The leasing makes the tree self-healing: orphaned branches die out within a small multiple of the lease period.
+
+\subsection{Relationship to Other Mechanisms}
+
+\paragraph{Versus operation-based CRDTs.} An operation-based CRDT propagates individual operations and relies on a causal-broadcast layer to ensure exactly-once, causally ordered delivery. The protocol here propagates state and tolerates arbitrary loss, reordering, and duplication; the merge function does the work that causal broadcast would otherwise have to.
+
+\paragraph{Versus Merkle anti-entropy.} Distributed key-value stores commonly use Merkle-tree anti-entropy \citep{decandia2007dynamo} to discover differences between replicas. That is a special case of the protocol here in which the summary is a hash tree and the delta is the subtree the other replica is missing. A contract whose data structure is amenable to a more compact summary (a list of identifiers, a counter value) pays a single round trip rather than $O(\log n)$ of them.
+
+\paragraph{Versus rsync.} \texttt{rsync} \citep{tridgell1999rsync} reconciles files by exchanging block-level checksums. It is generic but oblivious to application structure. Summary/delta is the same shape of protocol lifted to a level where the application defines the granularity.
+
+\paragraph{Versus delta-state CRDTs.} The closest formal analogue is the delta-state CRDT literature \citep{almeida2018delta}, which ships only changes between replicas of a fixed-lattice CRDT. The differences here are that the lattice and the delta-encoding are both supplied by the contract, and the result is embedded in a small-world routing layer rather than a fully-connected replica set.

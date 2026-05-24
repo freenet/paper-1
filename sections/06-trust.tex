@@ -1,0 +1,52 @@
+\section{Security and Trust Boundaries}
+\label{sec:trust}
+
+The platform has several layers, and each authenticates and trusts different things. This section is the consolidated story of what guarantees the platform actually provides, where the boundaries are, and what it does \emph{not} attempt to defend against.
+
+\subsection{Transport: Hop-by-Hop Encryption and Authentication}
+
+A connection between two neighboring peers is established by an authenticated ephemeral Diffie-Hellman handshake (X25519). The handshake exchanges symmetric keys used to encrypt subsequent traffic with AEAD constructions: AES-128-GCM by default, with ChaCha20-Poly1305 as an alternative for platforms without AES hardware acceleration. The handshake itself is encrypted with the recipient's long-term identity key, which doubles as a defense against unsolicited probes: a peer that has not received a properly-encrypted hello does not respond at all, making the port effectively invisible to a passive scanner.
+
+This authentication is \emph{hop-by-hop}. A request that traverses peers $A \to B \to C \to D$ is authenticated by $A$ to $B$, by $B$ to $C$, and by $C$ to $D$. There is no transport-level guarantee that the message body at $D$ is the body $A$ originally sent: an intermediate peer can drop, reorder, or modify the payload before forwarding.
+
+\subsection{Application Layer: End-to-End Authentication via Validity Predicates}
+
+End-to-end integrity is the contract's responsibility. A contract's validity predicate $\valid_\contract$ runs at every peer that touches the state. Update messages typically include a signature by an application-authorized key over the update content; the validity predicate verifies the signature and rejects the update otherwise. Because $\valid_\contract$ is itself part of the contract's content-addressed code, a peer cannot serve a state that fails validity without being caught by every receiving peer that runs the same code.
+
+The combination is the platform's substitute for a single end-to-end transport channel. Transport gives hop-by-hop confidentiality and authentication of neighbors. The contract gives end-to-end semantic integrity of state.
+
+\subsection{NAT Traversal and Bootstrap}
+
+Most peers operate behind consumer NAT and do not have a stable inbound address. The transport supports hole-punching: when two peers want to connect and at least one is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously \citep{ford2005peer}. The gateway --- which is required to have a public IP --- acts as an introducer that reports each side's externally-observed address.
+
+A peer's location is derived from this externally-observed address. The implications are discussed in the next subsection.
+
+\subsection{Location Assignment: A Known Sybil and Grinding Surface}
+
+Hashing the external address into $[0, 1)$ is a deliberately simple location-assignment scheme, and it is not Sybil-resistant. An attacker controlling a subnet, an IPv6 range, or a small cloud account can grind locations and place many peers in a chosen region of the ring. Within that region they can serve targeted contract requests with selected (or no) responses, and they can crowd out honest peers from acceptance under the topology rule.
+
+The platform does not solve this at the location layer. Two architectural mitigations operate at higher levels.
+
+First, the contract layer's validity predicates make state-doctoring detectable: a malicious peer that returns a state with an invalid signature is rejected by every honest receiver. The attack surface this leaves open is selectively serving stale (but still valid) state, not actively forging state.
+
+Second, the platform expects identity, reputation, and contribution-control to be built as application-layer contracts (see Ghost Keys \citep{ghostkey} for an example of a contract-mediated anonymous identity scheme). A contract that posts authoritative information can require its writers to hold reputation tokens issued by another contract; an inbox contract can demand a small proof of work; a community forum can require introductions from existing members. The platform's role is to provide a substrate on which these mechanisms can be built, not to embed any particular one in the routing layer.
+
+We treat the absence of a built-in Sybil defense as a deliberate scope decision, not an unintended gap. A platform-level scheme tends to either over-fit (assuming a specific economic or identity model that not all applications share) or under-deliver (a generic mitigation that any sufficiently-resourced adversary defeats).
+
+\subsection{Delegates: A Trust Boundary Around Secrets}
+
+Contracts hold public state. Applications also have private state --- a user's signing keys, a private contact list, the decryption material for an end-to-end encrypted inbox --- that should never be replicated and should be accessible only through controlled interfaces. The platform's primitive for this is the delegate.
+
+A delegate is a WebAssembly module running inside the local Freenet Core on a user's device. It holds private secret state, sandboxed by the core. Other components --- user interfaces, contracts, other delegates --- can interact with it only by sending messages. The core attaches a verified sender identifier to each inbound message, so the delegate's policy can be ``only respond to messages from UI X, originating from contract Y.''
+
+The trust boundary is therefore platform-enforced rather than conventional. Traditional in-process encapsulation (a ``private'' field on an object) is honored only by code that chooses to honor it; the same address space affords access to memory, file system, and undocumented APIs. A delegate's secret state is not addressable from any other code on the device. The only way to extract a secret from a delegate is to convince the delegate, on the basis of sender identity and message contents, that releasing the secret is allowed.
+
+\paragraph{Worked example: signing without exporting a key.} A chat application's UI needs to send signed messages. Without delegates, it must hold the private key. With delegates, the UI sends a $(\textsf{sign}, \mathrm{payload})$ message to a key-manager delegate; the delegate verifies the sender, signs the payload, and returns the signature. The private key never crosses the boundary. A bug or compromise in the UI can produce unwanted signed payloads but cannot exfiltrate the key itself; the delegate is also free to apply rate limits or user confirmation prompts before signing.
+
+\paragraph{Cross-device replication.} A user typically runs the ``same'' delegate on multiple devices. The delegates synchronize through a shared-secret contract: the contract holds an encrypted, replicated representation of the shared private state, and only the delegates with the symmetric key can decrypt it. The contract's merge function provides convergence; the delegate provides confidentiality.
+
+\subsection{Resource Accounting and What It Doesn't Cover}
+
+Each peer enforces user-configured limits on bandwidth (token-bucket rate limiting at the transport layer), storage (an LRU cache of hosted contracts with a per-peer budget), CPU, and memory (per-contract WebAssembly fuel and explicit memory bounds, enforced by Wasmtime \citep{wasmtime}). Excessive consumption by a neighbor results in disconnection.
+
+This protects the peer against a single misbehaving neighbor. It does not protect against coordinated traffic from many neighbors, against adversarial DoS that uses many cheap identities to fill local queues, or against a network-level abuse story that survives across peer identities. Defenses in that regime probably require some form of accounting that persists across identities, which is one of the explicit open problems in \cref{sec:status}.
