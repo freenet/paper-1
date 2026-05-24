@@ -26,6 +26,8 @@ jobs:
             texlive-fonts-extra \
             texlive-bibtex-extra \
             texlive-science \
+            lmodern \
+            cm-super \
             biber \
             latexmk
 
