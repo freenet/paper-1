@@ -1,0 +1,112 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- Packages -------------------------------------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[capitalize,noabbrev]{cleveref}
+\usepackage[round,authoryear]{natbib}
+\usepackage{abstract}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+% --- Theorem-like environments -------------------------------------------
+\newtheorem{definition}{Definition}
+\newtheorem{property}{Property}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem*{remark}{Remark}
+
+% --- Style ----------------------------------------------------------------
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=black,
+  pdftitle={Freenet: A Decentralized Application Platform Built on Contract-Defined Commutative Monoids over a Small-World Network},
+  pdfauthor={The Freenet Project}
+}
+
+\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
+\setlength{\parskip}{4pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Freenet Whitepaper}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+% --- Macros --------------------------------------------------------------
+\newcommand{\contract}{\mathcal{C}}
+\newcommand{\statespace}{\mathcal{S}}
+\newcommand{\merge}{\oplus}
+\newcommand{\summarize}{\mathsf{summarize}}
+\newcommand{\getdelta}{\mathsf{getDelta}}
+\newcommand{\applydelta}{\mathsf{applyDelta}}
+\newcommand{\valid}{\mathsf{valid}}
+\newcommand{\update}{\mathsf{update}}
+
+% --- Title ---------------------------------------------------------------
+\title{\textbf{Freenet}\\[2pt]
+\large A Decentralized Application Platform Built on\\
+Contract-Defined Commutative Monoids over a Small-World Network}
+\author{The Freenet Project\\[2pt]\small\texttt{https://freenet.org}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Freenet is a decentralized application platform built on a peer-to-peer network
+of programmable, eventually-consistent key-value cells called \emph{contracts}.
+Each contract is a WebAssembly module that defines its own
+\emph{commutative monoid} on application state, together with a generic
+summary/delta synchronization protocol that lets peers efficiently reconcile
+divergent replicas without global coordination. Contracts are located on a
+one-dimensional ring by content hash and reached using \emph{adaptive small-world
+routing}: peers learn a distance-indexed performance model for each neighbor and
+forward each request to the neighbor expected to deliver the answer fastest, not
+necessarily the neighbor topologically closest to the destination. The
+small-world topology itself is constructed by a single rule --- \emph{accept a
+connection only at the routing terminus} --- which causes local clustering and
+short paths to emerge without explicit long-link construction. Alongside
+public contract state, Freenet provides \emph{delegates}: actor-style
+WebAssembly agents that hold private secrets on a user's device and respond
+only to authenticated messages. The result is a platform that supports
+real-time, interactive decentralized applications --- such as group chat,
+collaborative documents, and reputation systems --- with eventual consistency
+defined by the application itself rather than by the network.
+\end{abstract}
+
+\vspace{0.5em}
+
+\input{sections/01-introduction.tex}
+\input{sections/02-system-model.tex}
+\input{sections/03-monoids.tex}
+\input{sections/04-sync.tex}
+\input{sections/05-small-world.tex}
+\input{sections/06-adaptive-routing.tex}
+\input{sections/07-transport.tex}
+\input{sections/08-delegates.tex}
+\input{sections/09-operations.tex}
+\input{sections/10-implementation.tex}
+\input{sections/11-discussion.tex}
+\input{sections/12-related-work.tex}
+\input{sections/13-conclusion.tex}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

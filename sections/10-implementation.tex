@@ -1,0 +1,20 @@
+\section{Implementation Notes}
+\label{sec:implementation}
+
+The Freenet Core is implemented in Rust as an asynchronous \texttt{tokio}-based runtime. Contracts and delegates execute inside Wasmtime \citep{wasmtime}, a production-grade WebAssembly engine; both run under per-instance fuel limits and explicit memory bounds, so a runaway or malicious contract cannot exhaust the host. Contract state is persisted to disk through a pluggable store layer with implementations on top of \texttt{redb} (a pure-Rust embedded key-value store) and \texttt{SQLite}.
+
+The runtime is organized as a single central event loop --- a \texttt{tokio::select!} over inbound transport packets, client API events, operation timers, and background tasks --- that dispatches into per-operation state machines. The decision to route everything through a single coordinator simplifies reasoning about partial state but limits the throughput of a single peer to what one event-loop thread can sustain; we have not found this to be the binding constraint in practice, but it would need revisiting at much higher per-peer load.
+
+Two implementation choices have outsized leverage on the rest of the system and deserve specific mention.
+
+\paragraph{Deterministic Simulation Testing.} A peer-to-peer system is hard to test by ordinary means: bugs in routing, congestion, or convergence appear only in specific multi-peer interleavings that are difficult to reproduce. The Core ships with a deterministic simulation testing harness built on Turmoil \citep{turmoil}: virtual time, a seeded global RNG, an in-memory socket implementation, and fault-injection knobs for loss, latency, partitions, and reorderings. Tests run the entire network in a single deterministic process and can be replayed bit-for-bit from a seed. Most non-trivial bugs we have found in routing, subscription propagation, and contract execution were first reproduced in deterministic simulation.
+
+\paragraph{Content-Addressed Components.} Contracts, delegates, and the user-interface bundles that drive them are all addressed by hash. This pushes a lot of complexity off the platform: there is no version negotiation, no upgrade protocol, no need for the platform to understand application semantics during deployment. An application releases a new version by publishing under a new contract key and arranging for users to discover it; the old key continues to work for as long as anyone hosts it. The platform never has to ``upgrade in place'' a contract that other peers may be using.
+
+\subsection{Storage and Hosting}
+
+Each peer holds a bounded cache of contract states and parameters. Hosting policy is LRU with a configurable per-peer budget (typical default 100\,MB) and a minimum time-to-live for recently-accessed contracts (typical 300 seconds). A peer is more likely to host contracts whose locations are near its own, both because such contracts are routinely terminated at that peer and because the small-world topology directs subscriber traffic for those contracts through it.
+
+\subsection{Cryptographic Material}
+
+Each peer has a long-term identity key pair, generated at first launch. The public key is used by other peers as the encryption target for handshakes; the secret key remains on the peer's host disk. Contracts may carry additional public keys in their parameters (for example, the authorized signers of an append-only log); the platform itself does not assume any particular key-management infrastructure, leaving identity and reputation to application-layer contracts.

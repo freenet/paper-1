@@ -1,0 +1,32 @@
+\section{Transport}
+\label{sec:transport}
+
+Underneath the ring and the contract layer, Freenet runs an encrypted UDP-based transport. Its design choices are dictated by three operating-environment realities: most peers sit behind consumer NAT devices, no fraction of the network can be expected to keep firewalls open for arbitrary inbound traffic, and ISPs deploy traffic classifiers that interact badly with anything that looks like a long-running peer-to-peer connection.
+
+\subsection{Packet Format and Encryption}
+
+A connection between two peers is established by an authenticated ephemeral Diffie-Hellman handshake (X25519). The handshake exchanges symmetric keys used to encrypt subsequent traffic with AEAD constructions --- AES-128-GCM by default, with ChaCha20-Poly1305 available as an alternative for platforms where AES hardware acceleration is unavailable. The handshake itself is encrypted with the recipient's long-term identity key, which doubles as a defense against unsolicited probes: a peer that has not received a properly-encrypted hello does not respond at all, making the port unobservable to network scanners.
+
+Packets are encoded as opaque encrypted UDP payloads with no readable header. Combined with the no-response rule for unauthenticated traffic, this makes Freenet UDP traffic indistinguishable from random data to a passive observer. Active classification by packet-size and timing patterns is in principle possible, but the protocol does not advertise itself to a port-scanning adversary.
+
+\subsection{Reliability and Streaming}
+
+The transport provides reliable, ordered delivery on top of UDP. Each packet carries a packet identifier and an acknowledgement list; acknowledgements are batched (up to 500\,ms, capped by a queue-length threshold) to amortize their overhead. Unacknowledged packets are retransmitted on a timer tied to a per-connection RTT estimate.
+
+Large messages are fragmented into multiple packets. Fragments are independently reliable and can be forwarded onward by an intermediate peer before the full message has been assembled, which is necessary to keep latency reasonable when a long-running streaming response --- a chat-room's full history, a large reputation set --- transits multiple hops.
+
+\subsection{NAT Traversal}
+
+A peer behind a consumer NAT does not have a stable inbound address. Freenet's transport supports hole-punching as part of connection establishment: when peer $A$ wants to connect to peer $B$ and at least one of them is behind a NAT, both peers send hello packets toward each other's observed external addresses simultaneously. Most consumer NATs treat the outbound packets as opening a path for inbound replies and the resulting two-way state allows the connection to be completed. A gateway peer, which is required to have a public IP, doubles as an introducer: it tells each side the other's externally-observed address.
+
+This mechanism is not novel \citep{ford2005peer}; we describe it here only because it is required for the next layer up. Without NAT traversal the small-world topology of \cref{sec:smallworld} would degenerate into a small number of public peers serving requests for the rest of the network.
+
+\subsection{Congestion Control}
+
+The protocol supports several pluggable congestion controllers and selects among them by configuration. The default for stable links is a token-bucket fixed-rate scheme: a per-connection token bucket regulates outgoing traffic to the user's configured upstream bandwidth. For background traffic --- subscription updates and gossip --- the LEDBAT++ delay-based controller \citep{rfc6817,balasubramanian2020ledbat} is used; LEDBAT++ targets a small queueing delay so that Freenet's bulk traffic yields to interactive foreground traffic on the same link. For lossy, high-latency paths --- mobile networks, transcontinental links --- a BBRv3-style \citep{cardwell2016bbr} bandwidth-and-delay model is available.
+
+The choice of controller affects neither the upper layers nor the consistency model; from the routing layer's point of view, transport is a connection abstraction with a measured throughput and latency.
+
+\subsection{Resource Accounting}
+
+Each peer enforces user-configured limits on bandwidth, storage, CPU, and memory. Excessive resource consumption by a neighbor --- repeated retransmission floods, oversized contract states, suspicious traffic patterns --- triggers disconnection. The platform does not provide a global accounting layer; we believe accountability between mutually-suspicious peers is a separable problem and is one of the open directions discussed in \cref{sec:discussion}.

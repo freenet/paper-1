@@ -1,0 +1,34 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Where Freenet Sits on the CAP Spectrum}
+
+The CAP theorem \citep{brewer2000towards,gilbert2002cap} states that a distributed system facing partitions can offer either availability or strong consistency, not both. Freenet chooses availability per contract and replaces strong consistency with whatever convergence property the contract's monoid expresses. This is the same broad position as systems like Dynamo \citep{decandia2007dynamo} and Riak: the network always answers, and the application is responsible for tolerating the resulting weak consistency.
+
+The platform differs from those systems in \emph{how} the application expresses that tolerance. Dynamo offers a small set of merge strategies (last-writer-wins, vector clocks with sibling resolution); Freenet offers an open-ended one, programmable in WebAssembly. The trade is the one already discussed in \cref{sec:monoids}: more expressive power, less ability for the runtime to validate the algebra. We believe the expressive-power side of that trade is necessary for non-trivial decentralized applications.
+
+\subsection{What Freenet Is Not Good At}
+
+Several application classes do not fit the monoid model gracefully and are accordingly difficult to build on the platform as described:
+
+\paragraph{Strictly linearizable transactions.} A double-spend defense for fungible tokens requires that two attempts to spend the same balance cannot both succeed. The monoid model cannot express ``one of these updates is rejected'': merge is total. Applications that need a strong-consistency primitive must either contain the inconsistency within a contract whose validity predicate detects and rejects the second update, or layer an auxiliary consensus mechanism on top. We do not view this as a limitation to remove; we view it as an honest declaration that strict linearizability has costs that the platform is unwilling to pay by default.
+
+\paragraph{Abuse-resistant open posting.} A purely-open contract --- anyone can append --- is straightforward to write as a set under union but is also straightforward to flood with spam. Workable contracts in this class generally restrict writes to signed records by approved keys, or charge a proof-of-work fee per update, or use a reputation system. The platform provides no built-in spam defense; application-layer reputation contracts \citep{ghostkey} are the intended mechanism.
+
+\paragraph{Adversarial denial of service.} The transport's rate limiting and resource accounting protect a peer from a single misbehaving neighbor. They do not protect against coordinated traffic from many neighbors. Defenses in this regime probably require accounting that survives across peer identities; this is an open problem and we treat it explicitly as such.
+
+\subsection{Relationship to the Original Freenet}
+
+The original Freenet \citep{clarke2001freenet} was an anonymous, content-addressed, immutable file-sharing network from 2001. Its routing heuristic --- forward to the peer whose previous successful routes most resemble the requested key --- was an early precursor to small-world greedy routing, but it operated over a routing table that had no explicit notion of location, and the network's data model was a single, immutable, anonymously-stored blob per key. The platform described in this paper preserves the small-world intuition and the content-addressed naming and replaces almost everything else: locations are explicit, state is mutable under a contract-defined algebra, anonymity has been moved out of the core into application-layer protocols, and applications are first-class citizens with delegates and user interfaces alongside contracts. The shared name reflects shared lineage, not shared design.
+
+\subsection{Limits of This Paper}
+
+We have described an architecture, not measured it. Several questions of practical importance are not addressed here:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item How well does the accept-only-at-terminus rule approximate the Kleinberg long-link distribution in practice? We have observed plausible $O(\log n)$ behavior in simulation and small deployments but have not run the careful study needed to claim it.
+  \item What is the failure mode of summary/delta synchronization when contracts violate \cref{prop:sync}? In principle a misbehaving contract converges nowhere; in practice the affected replicas should detect the lack of convergence and surface a fault, but the platform-level handling of this is still primitive.
+  \item Can the platform support a useful internal incentive layer, so that resource consumption is bounded by something stronger than per-peer goodwill? This is the work that determines whether the network grows to many millions of peers.
+\end{itemize}
+
+These are the directions we expect the next iteration of this paper, or successor papers, to address with measurements rather than design.

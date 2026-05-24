@@ -1,0 +1,28 @@
+\section{Operations and Request Lifecycle}
+\label{sec:operations}
+
+The five operations introduced in \cref{sec:ops-summary} --- \textsf{PUT}, \textsf{GET}, \textsf{UPDATE}, \textsf{SUBSCRIBE}, \textsf{CONNECT} --- are realized as transaction state machines coordinated by the local Freenet Core. Each is identified by a unique transaction id, tracked from initiation through completion, and supports retry, timeout, and composite (parent--child) relationships. We sketch their lifecycles here.
+
+\subsection{\textsf{PUT}}
+
+A \textsf{PUT} carries a contract $\contract$ and an initial state $\sigma_0$. The originating peer routes the request greedily (\cref{sec:adaptive}) toward $\ell(\contract)$. The first peer at or near $\ell(\contract)$ that has capacity caches $\contract$, validates $\sigma_0$ via $\valid_\contract$, and accepts the publish. Replication factor is configurable; nearby peers caching neighbors of the contract location also receive the state through the same path. A \textsf{PUT} can carry an attached \textsf{SUBSCRIBE} parent transaction so that the originator receives subsequent updates automatically.
+
+\subsection{\textsf{GET}}
+
+A \textsf{GET} carries a contract key $k$. The originating peer routes greedily toward the corresponding location. Any peer along the path that is currently hosting the contract may answer with $\sigma$ and the contract's parameters; the response travels back along the request path, caching at intermediate peers under their hosting policy. Because contracts are content-addressed, the requester can verify on arrival that the served state corresponds to the requested key.
+
+\subsection{\textsf{UPDATE}}
+
+An \textsf{UPDATE} carries a contract key $k$ and a candidate state $u \in \statespace_\contract$. It is routed toward $\ell(\contract)$ in the same way as a \textsf{GET}. Each peer along the path that already hosts the contract merges $u$ into its local copy, subject to the validity check; the propagation continues outward to the rest of the subscription tree (\cref{sec:subscription-tree}). Subscribers receive the update as a delta computed by the contract's $\getdelta_\contract$ against the summary they previously published, so the update size on the wire is bounded by the application-defined delta size, not by the full state.
+
+\subsection{\textsf{SUBSCRIBE}}
+
+A \textsf{SUBSCRIBE} establishes a soft-state interest in updates to a contract. The subscriber routes the request toward $\ell(\contract)$ and the first hosting peer responds; intermediate peers along the path record the subscription so that future updates flow back to the subscriber. Subscriptions are leased (typical lease 8 minutes, renewed every 2 minutes); a subscriber whose lease has expired must re-subscribe. The leasing makes the subscription tree self-healing: orphaned branches die out within a small multiple of the lease period.
+
+\subsection{\textsf{CONNECT}}
+
+\textsf{CONNECT} is the bootstrap operation described in \cref{sec:smallworld}. A joining peer issues a \textsf{CONNECT} to a known gateway with the target field set to its own location; the message is forwarded according to the accept-only-at-terminus rule until a peer accepts. A successful \textsf{CONNECT} establishes a single neighbor relationship; the joining peer typically issues several with different target locations to populate its initial neighbor set, after which ordinary request traffic continues the topology's organic growth.
+
+\subsection{Composition and the Operation Manager}
+
+Many real interactions combine operations: a client may issue a \textsf{PUT} that itself implies a \textsf{SUBSCRIBE}, or a \textsf{GET} whose result is intended to bootstrap a long-lived subscription. The local core's \emph{operation manager} tracks parent--child relationships across transactions so that the lifecycles compose: completion of the child unblocks the parent, failure of the parent terminates active children. Transactions carry timeouts and retry budgets; the user-facing API exposes the eventual outcome rather than the individual hops.

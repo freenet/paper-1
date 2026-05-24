@@ -1,0 +1,38 @@
+\section{Adaptive Routing}
+\label{sec:adaptive}
+
+Pure greedy-by-distance routing assumes that the topologically closest neighbor is also the operationally fastest path to the target. In a real peer-to-peer network this assumption is wrong often enough to matter: neighbors vary by an order of magnitude or more in available bandwidth, RTT, and uptime, and the locally-closest peer can be a slow residential connection while a slightly more distant peer is on a well-provisioned link. Freenet therefore replaces greedy-by-distance with \emph{performance-adaptive} routing: each peer estimates, for each neighbor, how fast a request sent through that neighbor will return, and forwards to the neighbor with the lowest expected total cost.
+
+\subsection{Per-Neighbor Performance Model}
+
+For each neighbor $q$, the local peer maintains a history of routing events of the form $(d, \tau, b, f)$, where $d$ is the ring distance from $q$ to the target of the request that was forwarded to $q$, $\tau$ is the observed response time-to-first-byte, $b$ is the observed transfer rate, and $f \in \{0, 1\}$ is a failure indicator (the request timed out or returned an error). From this history three estimators are fit:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item $\widehat{\tau}_q(d)$, predicted response latency as a function of distance-to-target;
+  \item $\widehat{p}_q(d)$, predicted failure probability;
+  \item $\widehat{b}_q(d)$, predicted transfer rate.
+\end{itemize}
+
+Each is fit by \emph{isotonic regression} \citep{barlow1972statistical, deleeuw2009isotone}, the standard non-parametric estimator for a monotone function. Isotonic regression returns the best (in mean-square error) curve that is monotone in its input; it has no other tunable parameters and no assumptions about functional form.
+
+The choice of isotonic regression is motivated by a prior we are confident in but unwilling to over-commit to: a neighbor's expected latency and failure rate are non-decreasing functions of distance-to-target on the ring, because greedy routing converges to the contract location, but the \emph{rate} at which they grow with distance is neighbor-specific and not well-modeled by any simple parametric family. Forcing a monotone fit captures the structural prior without over-fitting; the resulting curve adapts to whatever shape the neighbor actually exhibits.
+
+\subsection{Peer Selection}
+
+Given a target location $t$ for a request, the router computes the expected cost of routing through each neighbor $q$:
+\[
+  \mathrm{Cost}_q(t) \;=\; \widehat{\tau}_q(d(q, t)) \;+\; \kappa_{\mathrm{fail}}\, \widehat{p}_q(d(q, t)) \;+\; \kappa_{\mathrm{rate}}\, \widehat{b}_q(d(q, t))^{-1},
+\]
+where $\kappa_{\mathrm{fail}}$ and $\kappa_{\mathrm{rate}}$ are deployment-tuned coefficients converting failure probability and transfer rate into time-equivalent units. The neighbor with the lowest expected cost is selected. If insufficient history exists for any neighbor (a freshly bootstrapped peer, or a recently added neighbor), routing falls back to greedy-by-distance until enough events have accumulated.
+
+\subsection{Online Learning}
+
+Each completed request, successful or failed, produces an event $(d, \tau, b, f)$ that is folded into the relevant neighbor's history. Isotonic estimators are recomputed incrementally; the running cost is logarithmic in history size with the standard pooled-adjacent-violators implementation \citep{barlow1972statistical}. Old events age out of the window so that the model tracks current network conditions rather than long-past ones.
+
+\subsection{Why This Is Not Just Caching}
+
+A simpler alternative would be to remember the last successful neighbor for each ring region and route through them by default. We have found this insufficient for two reasons. First, the granularity is wrong: a single ``which neighbor is fastest for the right half of the ring'' decision conceals large performance differences between, say, distance $0.05$ and distance $0.30$. Second, fixed neighbor choices interact badly with topology changes: when a fast neighbor leaves, the simpler scheme has no graceful way to redistribute the load it was carrying. The distance-indexed isotonic model captures both effects: each neighbor is described by a curve, and load is implicitly redistributed across the network whenever curves shift.
+
+\subsection{Random-Walk Fallback}
+
+To prevent pathological local minima --- particularly during bootstrap or in the immediate neighborhood of an unresponsive peer --- the router departs from cost-minimization at high hops-to-live, exactly as in the greedy case (\cref{sec:smallworld}). The random-walk phase contributes diversity to the path distribution and, indirectly, to the long-range link distribution by terminating connections at unexpected locations.

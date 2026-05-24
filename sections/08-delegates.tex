@@ -1,0 +1,34 @@
+\section{Delegates}
+\label{sec:delegates}
+
+Contracts hold public state replicated across the network. Many applications also have private state --- a user's signing keys, a private contact list, the decryption material for an end-to-end encrypted inbox --- that should never be replicated and should be accessible only through controlled interfaces. The platform's primitive for this is the \emph{delegate}.
+
+\subsection{Definition}
+
+A delegate is a WebAssembly module that runs on a single user's device, inside the local Freenet Core, and conforms to a fixed message-passing interface. Each delegate has:
+
+\begin{itemize}[leftmargin=*, itemsep=2pt]
+  \item a private \emph{secret state}, stored by the local core in a sandbox the delegate's own code is the only writer to;
+  \item a set of \emph{inbound channels} from user interfaces, contracts, and other delegates;
+  \item a deterministic \emph{message handler} that, given an inbound message and current secret state, returns a (possibly empty) list of outbound messages and an updated secret state.
+\end{itemize}
+
+The core attaches a verified sender identifier to every inbound message: the delegate sees not only the message contents but also \emph{which} UI, contract, or sibling delegate produced it. This is the basic ingredient delegates use to enforce policy. A signing delegate, for example, can refuse to sign on behalf of any UI other than the one whose origin contract it has been instructed to trust.
+
+\subsection{Encapsulation Across a Real Trust Boundary}
+
+Traditional in-process encapsulation --- private fields in an object, internal modules in a library --- is conventional rather than enforced. Code running in the same address space can read memory, call undocumented APIs, or exfiltrate local files. A WebAssembly delegate, by contrast, executes in a sandbox managed by the core; its secret state is not addressable from any other code on the device. The only way to interact with a delegate is to send a message to its inbox, which means the only way to extract a secret from a delegate is to convince the delegate, on the basis of sender identity and message contents, that releasing the secret is allowed.
+
+This is the same separation Web browsers attempt with service workers, hardened by being a platform-provided trust boundary rather than a convention.
+
+\subsection{Worked Example: Signing Without Exporting a Key}
+
+A chat application running in the user's browser needs to send messages signed under the user's key. A naive implementation gives the chat UI direct access to the private key. A delegate-based implementation does not: the UI sends a message of the form $(\textsf{sign}, \mathrm{payload})$ to a key-manager delegate, the delegate verifies that the sender is the expected chat UI, signs $\mathrm{payload}$ with the relevant private key, and returns $(\textsf{signature}, \sigma)$. The private key never crosses the delegate boundary. A bug or compromise in the chat UI can produce unwanted signed payloads but cannot exfiltrate the key itself --- and the delegate is free to apply additional policy (rate limits, user confirmation prompts) before signing each request.
+
+\subsection{Cross-Device Replication}
+
+A user typically operates the same logical delegate on multiple devices --- the key manager on a laptop and a phone --- and needs them to agree on what they collectively know. Delegates address this by communicating across the Freenet network through a shared-secret contract: the contract holds an encrypted, replicated representation of the shared private state, the delegates on each device hold the symmetric key, and only those delegates can decrypt the contract's contents. The contract's merge function is exactly the structure of \cref{sec:monoids}; the delegate provides confidentiality and the contract provides convergence.
+
+\subsection{Why This Belongs in the Platform}
+
+Many systems that handle decentralized state assume the application will figure out where to keep its secrets. The result, repeatedly, is that secret-handling becomes the bug surface that compromises everything else. By making the delegate a first-class platform primitive --- with its own sandbox, attributed message interface, and replication story --- the platform provides a place where private state has architectural support, and applications can be assembled out of a UI plus a contract plus a delegate without each application having to invent its own key-isolation discipline.
