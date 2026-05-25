@@ -4,7 +4,7 @@ PAPER = main
 
 all: $(PAPER).pdf
 
-$(PAPER).pdf: $(PAPER).tex sections/*.tex refs.bib
+$(PAPER).pdf: $(PAPER).tex sections/*.tex figures/*.tex refs.bib
 	pdflatex -interaction=nonstopmode $(PAPER).tex
 	bibtex $(PAPER) || true
 	pdflatex -interaction=nonstopmode $(PAPER).tex
@@ -15,6 +15,6 @@ clean:
 	      *.synctex.gz sections/*.aux
 
 watch:
-	while inotifywait -e modify $(PAPER).tex sections/*.tex refs.bib; do \
+	while inotifywait -e modify $(PAPER).tex sections/*.tex figures/*.tex refs.bib; do \
 	  $(MAKE) all; \
 	done

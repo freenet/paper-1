@@ -1,0 +1,69 @@
+% Adaptive routing: per-neighbor isotonic-regression models of latency vs
+% distance-to-target. The router picks the next hop by combining the
+% predicted latency, failure probability, and throughput from each
+% neighbor's model -- which can differ from greedy-by-distance because a
+% near-but-slow neighbor can lose to a farther-but-fast one.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    axis/.style={->, >=Stealth, thick, black!75},
+    curveA/.style={blue!65!black, thick},
+    curveB/.style={orange!75!black, thick},
+    curveC/.style={green!55!black, thick},
+    dot/.style={circle, fill, inner sep=1pt},
+    label/.style={font=\scriptsize},
+    >=Stealth,
+]
+  % Axes (single panel: latency vs distance).
+  \draw[axis] (0,0) -- (7.0,0) node[right, label] {distance to target $d$};
+  \draw[axis] (0,0) -- (0,3.6) node[above, label, align=center]
+       {predicted\\latency $\widehat{\tau}_q(d)$};
+
+  % Three neighbor curves. Each is a piecewise-constant step function (the
+  % shape isotonic regression produces). Non-decreasing in d. Lower curve =
+  % faster neighbor.
+
+  % Neighbor q_A: a fast/long-haul neighbor -- low latency even at large d.
+  \draw[curveA] (0.0,0.55) -- (1.2,0.55) -- (1.2,0.75) -- (2.6,0.75)
+                -- (2.6,0.95) -- (4.0,0.95) -- (4.0,1.15) -- (5.4,1.15)
+                -- (5.4,1.50) -- (6.7,1.50);
+  \node[label, text=blue!65!black, anchor=west] at (6.75,1.55) {$\widehat{\tau}_{q_A}$ (fast)};
+
+  % Neighbor q_B: average -- moderate latency rising more steeply.
+  \draw[curveB] (0.0,1.10) -- (0.9,1.10) -- (0.9,1.45) -- (2.0,1.45)
+                -- (2.0,1.85) -- (3.3,1.85) -- (3.3,2.25) -- (4.8,2.25)
+                -- (4.8,2.70) -- (6.7,2.70);
+  \node[label, text=orange!75!black, anchor=west] at (6.75,2.75) {$\widehat{\tau}_{q_B}$ (average)};
+
+  % Neighbor q_C: high-latency, even close.
+  \draw[curveC] (0.0,1.50) -- (0.8,1.50) -- (0.8,1.85) -- (1.6,1.85)
+                -- (1.6,2.30) -- (2.6,2.30) -- (2.6,2.75) -- (3.8,2.75)
+                -- (3.8,3.20) -- (5.2,3.20) -- (5.2,3.40) -- (6.7,3.40);
+  \node[label, text=green!55!black, anchor=west] at (6.75,3.20) {$\widehat{\tau}_{q_C}$ (slow)};
+
+  % Mark a particular distance d_t (the distance to a specific target t).
+  \draw[gray!60, thin, dashed] (3.6,0) -- (3.6,3.4)
+       node[label, gray!45!black, anchor=south] at (3.6,3.4) {target distance $d_t$};
+  % Dots where the curves meet d_t.
+  \node[dot, blue!65!black] at (3.6,0.95)  {};
+  \node[dot, orange!75!black] at (3.6,2.25) {};
+  \node[dot, green!55!black]  at (3.6,2.75) {};
+
+  % Annotation: q_A is chosen.
+  \node[label, gray!35!black, align=center]
+       at (5.6,0.40) (choosenote) {choose $q_A$ for\\target at $d_t$};
+  \draw[->, >=Stealth, gray!50!black, thin]
+       (choosenote.west) -- (3.75,0.95);
+
+\end{tikzpicture}
+\caption{Adaptive routing. Each neighbor $q$ carries a non-parametric,
+non-decreasing model $\widehat{\tau}_q(d)$ of predicted latency as a
+function of ring distance to the target, fit by isotonic regression
+on the history of routing events. (Two more such models per neighbor
+track predicted failure probability and throughput; one is shown for
+clarity.) For a request to a target at distance $d_t$, the router
+reads each neighbor's prediction at $d_t$ (dots) and picks the
+neighbor that minimizes the combined expected cost. The chosen
+neighbor need not be the one topologically closest to the target.}
+\label{fig:adaptive-routing}
+\end{figure}

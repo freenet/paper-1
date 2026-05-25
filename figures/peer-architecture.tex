@@ -1,0 +1,65 @@
+% Per-peer architecture: what runs in and around one peer's process.
+% Horizontal layout: browser (UI bundle) on left -- WebSocket -- Freenet
+% Core (contracts + delegates) in middle -- UDP -- rest of network on right.
+% Transport sits as a sub-box at the bottom of the Core.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    wasm/.style={draw=black!60, rounded corners=2pt, fill=orange!18,
+                 minimum width=1.9cm, minimum height=0.65cm,
+                 font=\small, align=center},
+    ui/.style={draw=black!60, rounded corners=2pt, fill=purple!12,
+               minimum width=2.4cm, minimum height=1.0cm,
+               font=\small, align=center},
+    transport/.style={draw=black!60, rounded corners=2pt, fill=green!12,
+                      minimum width=5.0cm, minimum height=0.5cm,
+                      font=\scriptsize\itshape, align=center},
+    core/.style={draw=black!70, rounded corners=4pt, thick,
+                 minimum width=5.3cm, minimum height=2.6cm,
+                 fill=blue!4},
+    netcloud/.style={draw=black!50, dashed, cloud, cloud puffs=12,
+                     cloud puff arc=120, minimum width=2.5cm,
+                     minimum height=1.3cm, font=\scriptsize\itshape,
+                     fill=gray!8},
+    arr/.style={->, >=Stealth, thick, black!70},
+    label/.style={font=\scriptsize, gray!40!black},
+    tag/.style={font=\scriptsize\itshape, gray!40!black},
+    >=Stealth,
+]
+  % --- Browser on the left ---
+  \node[ui] (ui) at (0,0) {UI bundle\\\scriptsize(HTML+JS+WASM)};
+  \node[label, anchor=south] at (ui.north) {browser};
+
+  % --- Freenet Core in the middle ---
+  \node[core] (core) at (5.4,0) {};
+  \node[font=\small\bfseries, anchor=north]
+       at (core.north) [yshift=-3pt] {Freenet Core};
+  \node[label, anchor=north] at (core.north) [yshift=-19pt] {(Rust, async)};
+
+  % Contracts and delegates as a row inside the core.
+  \node[wasm] (c1) at (4.4,-0.1)  {contract};
+  \node[wasm] (d1) at (6.4,-0.1) {delegate};
+
+  % Transport row attached to the bottom of the core.
+  \node[transport, anchor=south]
+       at ([yshift=4pt] core.south) (t)
+       {transport: UDP, NAT hole-punch, X25519+AEAD};
+
+  % --- Rest of network on the right ---
+  \node[netcloud, right=14mm of core.east] (net) {rest of network};
+
+  % --- Wires ---
+  \draw[arr] (ui.east) -- node[label, above=-2pt] {WebSocket} (core.west);
+  \draw[arr] (t.east) -- node[label, above=-2pt] {UDP} (net.west);
+
+\end{tikzpicture}
+\caption{What runs in and around a single peer. The Freenet Core is
+a Rust process that hosts WebAssembly \emph{contracts} (whose state
+is public and replicated across peers near the contract's ring
+location) and \emph{delegates} (whose state is local to the device
+and never leaves it). A \emph{user interface} is an HTML/JS/WASM
+bundle delivered as contract state and run in the browser; it talks
+to its local Core over a WebSocket. The Core's transport speaks UDP
+with NAT hole-punching to neighbors on the rest of the network.}
+\label{fig:peer-architecture}
+\end{figure}

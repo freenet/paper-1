@@ -27,6 +27,8 @@ A \emph{delegate} is a WebAssembly module that runs on a single user's device, i
 
 A \emph{user interface} is a web frontend (HTML, JavaScript, WebAssembly) delivered by a contract whose state encodes the application bundle. User interfaces run in the browser and communicate with the local core over a WebSocket API. They reach contracts and delegates only through that local core. They are not a distinct kind of network-visible artifact: from the platform's perspective, the bundle is just contract state with a particular MIME type.
 
+\input{figures/peer-architecture.tex}
+
 \subsection{Operations}
 
 A small set of operations connect these artifacts. We describe them informally here; their detailed lifecycles appear in \cref{sec:routing}.

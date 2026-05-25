@@ -3,9 +3,9 @@
 Source for *Freenet: A Peer-to-Peer Platform for Real-Time Decentralized
 Applications*, an architectural whitepaper covering the contract model
 (idempotent commutative monoids / join-semilattices on application state),
-summary/delta synchronization, accept-only-at-terminus small-world routing,
-adaptive routing via per-neighbor isotonic regression, and the delegate
-model for private state.
+summary/delta synchronization, small-world routing with gap-target topology
+construction and Kleinberg-scored acceptance, adaptive routing via
+per-neighbor isotonic regression, and the delegate model for private state.
 
 ## Read it
 

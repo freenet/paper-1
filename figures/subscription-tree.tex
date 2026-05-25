@@ -1,0 +1,93 @@
+% Subscription tree + UPDATE propagation. A contract's hosting peers form
+% a tree rooted near l(C); subscribers attach as additional leaves. An
+% UPDATE injected at one node merges locally then propagates outward
+% along subscription edges. The figure shows two updates injected at
+% different leaves; they propagate inward, meet at internal nodes, and
+% merge by the contract's commutative merge.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    host/.style={circle, draw=black!75, fill=orange!22, minimum size=8.5mm,
+                 font=\scriptsize, inner sep=0pt},
+    sub/.style={circle, draw=black!60, fill=white, minimum size=7mm,
+                font=\scriptsize, inner sep=0pt},
+    edge/.style={black!55, thick},
+    update1/.style={->, >=Stealth, red!75!black, very thick},
+    update2/.style={->, >=Stealth, blue!70!black, very thick, dashed},
+    label/.style={font=\scriptsize, gray!35!black},
+    >=Stealth,
+]
+  % Root hosts (near l(C)).
+  \node[host] (root) at (0,0) {root};
+
+  % Hosting peers form a small ring of close-by replicas (in this picture
+  % we keep it simple: root plus a couple of nearby hosts).
+  \node[host] (h1) at (-2.0,-1.4) {host};
+  \node[host] (h2) at ( 2.0,-1.4) {host};
+
+  % Subscribers branch off as leaves.
+  \node[sub] (s1) at (-3.6,-2.8) {sub};
+  \node[sub] (s2) at (-1.5,-2.8) {sub};
+  \node[sub] (s3) at ( 0.5,-2.8) {sub};
+  \node[sub] (s4) at ( 2.7,-2.8) {sub};
+  \node[sub] (s5) at ( 4.2,-2.8) {sub};
+
+  \node[sub] (s1a) at (-4.5,-4.1) {sub};
+  \node[sub] (s2a) at (-1.0,-4.1) {sub};
+  \node[sub] (s5a) at ( 4.7,-4.1) {sub};
+
+  % Tree edges.
+  \draw[edge] (root) -- (h1);
+  \draw[edge] (root) -- (h2);
+  \draw[edge] (h1) -- (s1);
+  \draw[edge] (h1) -- (s2);
+  \draw[edge] (h1) -- (s3);
+  \draw[edge] (h2) -- (s4);
+  \draw[edge] (h2) -- (s5);
+  \draw[edge] (s1) -- (s1a);
+  \draw[edge] (s2) -- (s2a);
+  \draw[edge] (s5) -- (s5a);
+
+  % Update u1 injected at s1a, propagates inward and outward.
+  \draw[update1] (s1a.north east) to[bend left=12] node[label, sloped, above, text=red!75!black] {$u_1$} (s1.south);
+  \draw[update1] (s1.north east) to[bend left=12] (h1.south west);
+  \draw[update1] (h1.east) -- (h2.west);
+  \draw[update1] (h1.north) to[bend right=10] (root.south west);
+  % And it fans out from h1 to s2, s3 (sibling subtrees) too.
+  \draw[update1] (h1.south) to[bend left=10] (s2.north);
+  \draw[update1] (h1.south east) to[bend left=10] (s3.north west);
+
+  % Update u2 injected at s5a, also propagates inward.
+  \draw[update2] (s5a.north west) to[bend right=12] node[label, sloped, above, text=blue!70!black] {$u_2$} (s5.south);
+  \draw[update2] (s5.north west) to[bend right=12] (h2.south east);
+  \draw[update2] (h2.north) to[bend left=10] (root.south east);
+
+  % Annotation
+  \node[font=\small, gray!35!black, anchor=west, align=left]
+       at (-5.6,0.5) {hosting peers\\(near $\ell(\mathcal{C})$)};
+  \draw[gray!50!black, ->, >=Stealth, thin] (-3.3,0.2) -- (root.west);
+
+  \node[font=\small, gray!35!black, anchor=east, align=right]
+       at (-5.6,-4.1) {subscribers};
+  \draw[gray!50!black, ->, >=Stealth, thin] (-5.55,-4.1) -- (s1a.west);
+
+  % Legend
+  \begin{scope}[shift={(3.5,0.5)}]
+    \draw[update1, line width=1pt] (0,0) -- (0.5,0)
+        node[font=\scriptsize, text=red!75!black, right] {$u_1$ injected at lower-left};
+    \draw[update2, line width=1pt] (0,-0.35) -- (0.5,-0.35)
+        node[font=\scriptsize, text=blue!70!black, right] {$u_2$ injected at lower-right};
+  \end{scope}
+
+\end{tikzpicture}
+\caption{Subscription tree for a contract $\mathcal{C}$. Orange nodes
+are peers that \emph{host} $\mathcal{C}$'s state (near
+$\ell(\mathcal{C})$); white nodes are \emph{subscribers}. An
+\textsf{UPDATE} injected at any node is merged locally and then
+propagated outward along tree edges using the summary/delta protocol
+(\S\ref{sec:updates}). Two concurrent updates $u_1$ and $u_2$ injected
+at opposite leaves travel inward, meet at internal nodes, and merge
+by $\mathcal{C}$'s commutative merge; the order in which they arrive
+at a given node does not change its final state.}
+\label{fig:subscription-tree}
+\end{figure}

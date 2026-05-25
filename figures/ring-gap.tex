@@ -1,0 +1,54 @@
+% Ring + gap target. Shows a peer's view of the ring with existing neighbors
+% as points on the circle, the largest log-distance gap highlighted as an arc,
+% and the gap midpoint marked as the next CONNECT target.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    peer/.style={circle, draw=black!70, fill=white, inner sep=1.2pt},
+    self/.style={circle, draw=black, fill=black, inner sep=1.8pt},
+    target/.style={star, star points=5, draw=black!80, fill=yellow!70, inner sep=1.4pt},
+    label/.style={font=\scriptsize},
+    >=Stealth,
+]
+  \def\R{2.6}
+  % The ring
+  \draw[gray!60, thick] (0,0) circle (\R);
+
+  % Self at top (location 0)
+  \node[self, label={[label]above:self ($\ell{=}0$)}] (S) at (90:\R) {};
+
+  % Existing neighbors at angles chosen to leave one large gap on the
+  % left-hand side of the ring (between 200deg and 310deg, ~ a third of the ring).
+  \foreach \a/\name in {62/n1, 38/n2, 12/n3, -10/n4, -40/n5, -75/n6, -130/n7, 165/n8, 130/n9, 110/n10} {
+    \node[peer] (\name) at (\a:\R) {};
+  }
+
+  % Highlight the large gap between n7 (-130 = 230deg) and n8 (165deg).
+  % Span the gap clockwise from n7 to n8 (going through 180deg).
+  \draw[red!80, line width=1.8pt] (n7) arc[start angle=-130, end angle=-195, radius=\R];
+
+  % Gap midpoint (-130 + 165 averaged on the short side: midpoint of the arc
+  % from -130 going clockwise to -195 is at -162.5 = 197.5deg).
+  \node[target, label={[label, text=red!80]left:next \textsf{CONNECT} target}] (T) at (-162.5:\R) {};
+
+  % Bracket-ish annotation pointing to the gap.
+  \draw[red!80, ->, thick] ($(-162.5:\R*1.45)$) -- ($(-162.5:\R*1.08)$);
+  \node[label, text=red!80, align=center] at (-162.5:\R*1.78) {largest gap\\(log-distance)};
+
+  % Annotation for an existing neighbor distance (just one, to keep clean).
+  \draw[blue!50!black, dashed, thin] (S) -- (n3);
+  \node[label, text=blue!50!black] at ($(S)!0.5!(n3)$) [above right=-1pt] {$d_3$};
+
+  % Caption-side annotation for the neighbor cloud.
+  \node[label, gray!60!black] at (45:\R*1.30) {existing};
+  \node[label, gray!60!black] at (45:\R*1.40) {neighbors};
+
+\end{tikzpicture}
+\caption{Gap-targeting from a single peer's view. The peer measures
+ring distance $d_i$ to each existing neighbor (one such $d_i$ shown
+dashed), identifies the largest gap in log-distance space (red arc),
+and chooses its midpoint as the next \textsf{CONNECT} destination
+(star). The peer thus pulls its own connection distribution toward
+$1/d$ as it accumulates neighbors.}
+\label{fig:ring-gap}
+\end{figure}

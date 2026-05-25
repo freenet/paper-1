@@ -1,0 +1,75 @@
+% CONNECT path with accept-and-forward in the proximity band. The joiner
+% issues a single CONNECT; the request is greedily forwarded toward the
+% joiner's desired location; peers within the proximity band of the target
+% may both accept and forward, so the joiner ends up with more than one
+% neighbor connection from a single CONNECT.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    peer/.style={circle, draw=black!70, fill=white, inner sep=2.2pt, font=\scriptsize},
+    joiner/.style={circle, draw=black, fill=blue!18, inner sep=2.5pt, font=\scriptsize},
+    terminus/.style={circle, draw=black, fill=green!28, inner sep=2.5pt, font=\scriptsize},
+    band/.style={circle, draw=black, fill=orange!30, inner sep=2.5pt, font=\scriptsize},
+    fwd/.style={->, >=Stealth, gray!70!black, thick},
+    accept/.style={->, >=Stealth, blue!60!black, thick, dashed},
+    label/.style={font=\scriptsize},
+    >=Stealth,
+]
+  % Layout: joiner on left, then 5 forwarding hops, last 2 inside proximity band of target.
+  \node[joiner]    (J)  at (0,0)    {J};
+  \node[peer]      (P1) at (1.6,0)  {};
+  \node[peer]      (P2) at (3.2,0)  {};
+  \node[peer]      (P3) at (4.8,0)  {};
+  \node[band]      (P4) at (6.4,0)  {};
+  \node[band]      (P5) at (8.0,0)  {};
+  \node[terminus]  (T)  at (9.6,0)  {T};
+
+  % Shaded band behind P4..T to make the proximity band visually obvious.
+  \begin{scope}[on background layer]
+    \fill[orange!12, rounded corners=4pt] ($(P4.south west)+(-0.25,-0.45)$)
+                                          rectangle
+                                          ($(T.north east)+(0.25,0.45)$);
+  \end{scope}
+
+  % Greedy forwarding chain
+  \draw[fwd] (J)  -- (P1) node[midway, above, label] {fwd};
+  \draw[fwd] (P1) -- (P2);
+  \draw[fwd] (P2) -- (P3);
+  \draw[fwd] (P3) -- (P4);
+  \draw[fwd] (P4) -- (P5);
+  \draw[fwd] (P5) -- (T)  node[midway, above, label] {fwd};
+
+  % Accept edges from band peers + terminus back to joiner. Vary the bend
+  % so they don't pile on top of each other.
+  \draw[accept] (P4) to[bend right=55] (J);
+  \draw[accept] (P5) to[bend right=45] (J);
+  \draw[accept] (T)  to[bend right=38] (J);
+
+  % Labels
+  \node[label] at ($(J)+(0,-0.42)$) {joiner};
+  \node[label] at ($(T)+(0,-0.42)$) {target $t$};
+  \node[label, gray!55!black] at ($(P2)!0.5!(P3)+(0,0.4)$) {greedy forwarding};
+
+  % Proximity band label, below the shaded region.
+  \node[label, text=orange!80!black, align=center]
+       at ($(P4)!0.5!(T)+(0,-2.45)$)
+       {proximity band of $t$ ($\sim 5\%$ of ring):\\
+        these peers \emph{accept and forward}};
+
+  % "accept (terminus)" label inline with the rightmost bend.
+  \node[label, text=green!42!black, align=center]
+       at ($(T)+(-0.5,-1.65)$) {terminus\\accept};
+
+\end{tikzpicture}
+\caption{A single \textsf{CONNECT} from joiner $J$ to its desired
+location $t$. The request is greedily forwarded toward $t$ (solid
+arrows). Once the route enters the proximity band of $t$ (the
+deployed band is $\sim$5\% of the ring, shown shaded), each receiver
+may \emph{additionally} accept the joiner with a proximity-scaled
+probability while still forwarding the request onward (dashed return
+edges). The terminus also applies its acceptance chain
+(\S\ref{sec:routing}). Net result: one \textsf{CONNECT} request can
+establish multiple connections close to $t$, not just one at the
+terminus.}
+\label{fig:connect-path}
+\end{figure}

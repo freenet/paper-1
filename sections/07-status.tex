@@ -25,7 +25,7 @@ Mechanism & Status & Notes \\
 \midrule
 Small-world ring topology & Deployed & Live network $\approx 440$ active peers \\
 Greedy forwarding + HTL fallback & Deployed & HTL cap = 10, random walk above 7 \\
-Accept-only-at-terminus topology rule & Deployed & \\
+Two-stage CONNECT acceptance & Deployed & Greedy forward, accept-and-forward in 5\% band, Kleinberg-scored at terminus \\
 Adaptive isotonic-regression routing & Deployed & Per-neighbor distance-indexed model \\
 Summary/delta synchronization & Deployed & Per-contract, application-defined \\
 Subscription trees with leases & Deployed & 8-min lease, 2-min renewal \\

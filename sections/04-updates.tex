@@ -82,6 +82,8 @@ For all $\sigma_A, \sigma_B \in \statespace_\contract$, let $s = \summarize_\con
 
 \subsection{The Two-Step Sync Protocol}
 
+\input{figures/summary-delta.tex}
+
 Two peers $A$ and $B$ reconcile their states for a contract $\contract$ as follows:
 
 \begin{enumerate}[leftmargin=1.4em, itemsep=2pt]
@@ -100,6 +102,8 @@ The honest-but-stale case is the easy one. Two cases require more care.
 \paragraph{Malicious peers.} A peer that supplies a deliberately malformed summary, or returns a delta that violates the validity predicate, is treated like any other source of invalid state. The receiver applies $\valid_\contract$ to the merged result; if the result fails validity, the delta is rejected. A more subtle attack is for a peer to supply a delta that is valid but withholding (claiming to be up to date when it is not). The protocol cannot distinguish such a peer from one that has simply not yet received the missing updates; the replication factor across multiple peers near $\ell(\contract)$ is the structural defense, not the sync protocol itself.
 
 \subsection{Subscription Trees}
+
+\input{figures/subscription-tree.tex}
 
 Once a contract is published, peers near $\ell(\contract)$ host its state and additional peers register as subscribers. A subscription forms a soft-state link from the subscriber back toward the contract's home location; collectively these links form a tree rooted near $\ell(\contract)$. An update arriving at any node of the tree is merged into local state and propagated outward along the tree, with each pairwise hop using the summary/delta protocol above.
 
