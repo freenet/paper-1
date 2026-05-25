@@ -3,6 +3,12 @@
 % predicted latency, failure probability, and throughput from each
 % neighbor's model -- which can differ from greedy-by-distance because a
 % near-but-slow neighbor can lose to a farther-but-fast one.
+%
+% The implementation (sanity/pav.rs via the freenet-core router) does
+% pool-adjacent-violators followed by LINEAR INTERPOLATION between fitted
+% points and LINEAR EXTRAPOLATION beyond the training-data domain. The
+% curves here therefore appear as piecewise-linear polylines through the
+% observed training points (dots), not as step functions.
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -10,7 +16,10 @@
     curveA/.style={blue!65!black, thick},
     curveB/.style={orange!75!black, thick},
     curveC/.style={green!55!black, thick},
-    dot/.style={circle, fill, inner sep=1pt},
+    fitdotA/.style={circle, fill=blue!65!black, inner sep=0.7pt},
+    fitdotB/.style={circle, fill=orange!75!black, inner sep=0.7pt},
+    fitdotC/.style={circle, fill=green!55!black, inner sep=0.7pt},
+    pickdot/.style={circle, fill, inner sep=1.2pt},
     label/.style={font=\scriptsize},
     >=Stealth,
 ]
@@ -19,51 +28,68 @@
   \draw[axis] (0,0) -- (0,3.6) node[above, label, align=center]
        {predicted\\latency $\widehat{\tau}_q(d)$};
 
-  % Three neighbor curves. Each is a piecewise-constant step function (the
-  % shape isotonic regression produces). Non-decreasing in d. Lower curve =
-  % faster neighbor.
+  % Each neighbor's curve is a piecewise-linear polyline through fitted
+  % points (dots), monotone non-decreasing thanks to PAV. The training
+  % domain is a subinterval; beyond it the curve continues linearly
+  % (extrapolated, shown dashed).
 
   % Neighbor q_A: a fast/long-haul neighbor -- low latency even at large d.
-  \draw[curveA] (0.0,0.55) -- (1.2,0.55) -- (1.2,0.75) -- (2.6,0.75)
-                -- (2.6,0.95) -- (4.0,0.95) -- (4.0,1.15) -- (5.4,1.15)
-                -- (5.4,1.50) -- (6.7,1.50);
-  \node[label, text=blue!65!black, anchor=west] at (6.75,1.55) {$\widehat{\tau}_{q_A}$ (fast)};
+  \draw[curveA] (0.6,0.55) -- (1.4,0.70) -- (2.6,0.95) -- (4.0,1.15) -- (5.2,1.45);
+  \draw[curveA, dashed] (0.0,0.40) -- (0.6,0.55);
+  \draw[curveA, dashed] (5.2,1.45) -- (6.7,1.70);
+  \foreach \x/\y in {0.6/0.55, 1.4/0.70, 2.6/0.95, 4.0/1.15, 5.2/1.45}
+    \node[fitdotA] at (\x,\y) {};
+  \node[label, text=blue!65!black, anchor=west] at (6.75,1.75) {$\widehat{\tau}_{q_A}$ (fast)};
 
   % Neighbor q_B: average -- moderate latency rising more steeply.
-  \draw[curveB] (0.0,1.10) -- (0.9,1.10) -- (0.9,1.45) -- (2.0,1.45)
-                -- (2.0,1.85) -- (3.3,1.85) -- (3.3,2.25) -- (4.8,2.25)
-                -- (4.8,2.70) -- (6.7,2.70);
-  \node[label, text=orange!75!black, anchor=west] at (6.75,2.75) {$\widehat{\tau}_{q_B}$ (average)};
+  \draw[curveB] (0.5,1.10) -- (1.4,1.45) -- (2.6,1.85) -- (3.8,2.20) -- (5.0,2.55);
+  \draw[curveB, dashed] (0.0,0.90) -- (0.5,1.10);
+  \draw[curveB, dashed] (5.0,2.55) -- (6.7,2.95);
+  \foreach \x/\y in {0.5/1.10, 1.4/1.45, 2.6/1.85, 3.8/2.20, 5.0/2.55}
+    \node[fitdotB] at (\x,\y) {};
+  \node[label, text=orange!75!black, anchor=west] at (6.75,3.00) {$\widehat{\tau}_{q_B}$ (average)};
 
-  % Neighbor q_C: high-latency, even close.
-  \draw[curveC] (0.0,1.50) -- (0.8,1.50) -- (0.8,1.85) -- (1.6,1.85)
-                -- (1.6,2.30) -- (2.6,2.30) -- (2.6,2.75) -- (3.8,2.75)
-                -- (3.8,3.20) -- (5.2,3.20) -- (5.2,3.40) -- (6.7,3.40);
-  \node[label, text=green!55!black, anchor=west] at (6.75,3.20) {$\widehat{\tau}_{q_C}$ (slow)};
+  % Neighbor q_C: high-latency even close.
+  \draw[curveC] (0.4,1.50) -- (1.4,1.95) -- (2.6,2.45) -- (3.6,2.90) -- (4.8,3.25);
+  \draw[curveC, dashed] (0.0,1.30) -- (0.4,1.50);
+  \draw[curveC, dashed] (4.8,3.25) -- (6.7,3.55);
+  \foreach \x/\y in {0.4/1.50, 1.4/1.95, 2.6/2.45, 3.6/2.90, 4.8/3.25}
+    \node[fitdotC] at (\x,\y) {};
+  \node[label, text=green!55!black, anchor=west] at (6.75,3.40) {$\widehat{\tau}_{q_C}$ (slow)};
 
-  % Mark a particular distance d_t (the distance to a specific target t).
-  \draw[gray!60, thin, dashed] (3.6,0) -- (3.6,3.4)
-       node[label, gray!45!black, anchor=south] at (3.6,3.4) {target distance $d_t$};
-  % Dots where the curves meet d_t.
-  \node[dot, blue!65!black] at (3.6,0.95)  {};
-  \node[dot, orange!75!black] at (3.6,2.25) {};
-  \node[dot, green!55!black]  at (3.6,2.75) {};
+  % Target distance vertical guide.
+  \draw[gray!60, thin, dashed] (3.0,0) -- (3.0,3.4)
+       node[label, gray!45!black, anchor=south] at (3.0,3.4) {target distance $d_t$};
+
+  % Dots at each curve's value at d_t (interpolated).
+  \node[pickdot, blue!65!black] at (3.0,1.007) {};
+  \node[pickdot, orange!75!black] at (3.0,1.967) {};
+  \node[pickdot, green!55!black]  at (3.0,2.63)  {};
 
   % Annotation: q_A is chosen.
   \node[label, gray!35!black, align=center]
        at (5.6,0.40) (choosenote) {choose $q_A$ for\\target at $d_t$};
   \draw[->, >=Stealth, gray!50!black, thin]
-       (choosenote.west) -- (3.75,0.95);
+       (choosenote.west) -- (3.15,1.007);
+
+  % Legend (top-left, with white fill to avoid overlapping axis labels).
+  \node[label, gray!35!black, anchor=north west, align=left,
+        fill=white, inner sep=2pt, draw=gray!30, rounded corners=2pt]
+       at (0.2,3.1)
+       {dots: training points\\dashed: linear extrapolation};
 
 \end{tikzpicture}
 \caption{Adaptive routing. Each neighbor $q$ carries a non-parametric,
 non-decreasing model $\widehat{\tau}_q(d)$ of predicted latency as a
 function of ring distance to the target, fit by isotonic regression
-on the history of routing events. (Two more such models per neighbor
-track predicted failure probability and throughput; one is shown for
-clarity.) For a request to a target at distance $d_t$, the router
-reads each neighbor's prediction at $d_t$ (dots) and picks the
-neighbor that minimizes the combined expected cost. The chosen
-neighbor need not be the one topologically closest to the target.}
+(pool-adjacent-violators) on the history of routing events. The
+fitted points (dots) are connected by linear interpolation; beyond
+the training-data domain the model extrapolates linearly (dashed).
+Two more such models per neighbor track predicted failure probability
+and throughput; one is shown for clarity. For a request to a target
+at distance $d_t$, the router reads each neighbor's prediction at
+$d_t$ and picks the neighbor that minimizes the combined expected
+cost. The chosen neighbor need not be the one topologically closest
+to the target.}
 \label{fig:adaptive-routing}
 \end{figure}

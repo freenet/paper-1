@@ -9,6 +9,15 @@ A peer's location $\ell(p)$ is computed by hashing its external network address 
 
 This is the simplest workable arrangement, and its trade-offs are worth being explicit about. Locations are stable across restarts that preserve the peer's address but change when a peer is rehomed, when NAT mappings shift, or when a peer is reachable on multiple addresses. An adversary in control of many addresses (a cloud subnet, an IPv6 range, a small botnet) can grind locations and concentrate them in chosen regions of the ring. The platform does not attempt to solve Sybil resistance at this layer; defenses are application-level (signed contributions, reputation contracts, capacity-limited delegation) and are discussed in \cref{sec:trust}.
 
+\subsection{Why Small-World Routing}
+\label{sec:smallworld}
+
+The platform's routing strategy traces to Kleinberg's small-world result \citep{kleinberg2000small}. Place $N$ peers on a ring (or any metric space). Give each peer a constant number of \emph{short-range} links to its immediate neighbors on the ring, plus a small number of \emph{long-range} links sampled from a distribution that scales as $1/d$ in the ring distance $d$. Kleinberg proved that a node who knows only its own neighbors can route a message to any target in $O(\log^2 N)$ hops by greedy forwarding: at each step, send the message to whichever neighbor is closest to the target. No global knowledge, no flooding, no routing-table maintenance beyond keeping the link distribution roughly $1/d$.
+
+The $1/d$ distribution is what makes the bound work. Too short and the long-range links don't help cover ground; too long and they overshoot the target. $1/d$ produces, at each scale, a constant probability of a useful long-range hop, so a request roughly halves its remaining distance at every step until the local neighborhood dominates.
+
+The practical question is how the $1/d$ distribution gets there. Kleinberg's analysis assumed it as a given. Symphony \citep{manku2003symphony} sampled the long-range links from a harmonic distribution at join time and kept them. The platform here takes a different tack: each peer continuously \emph{steers} its own neighborhood toward the $1/d$ shape, by choosing the destination of each new \textsf{CONNECT} request from the under-represented region of its current connection distribution (\emph{gap-targeting}, \cref{sec:routing}), and by preferring incoming connection candidates that close large gaps in its existing distribution (\emph{Kleinberg-style score}, also \cref{sec:routing}). The active steering is what lets the network preserve the $1/d$ shape under churn; this is the mechanism we describe in the rest of the section.
+
 \subsection{Topology Construction}
 
 The small-world topology is built by the \textsf{CONNECT} operation. A joiner chooses a \emph{desired location} on the ring, sends a \textsf{CONNECT} message routed greedily toward that location, and the peer that terminates the route decides whether to accept. Both ends of this exchange are more involved than the original ``accept only at the terminus'' framing suggests, and both are actively shaping the topology toward Kleinberg's $1/d$ ideal \citep{kleinberg2000small} rather than relying on it to emerge.
@@ -43,7 +52,9 @@ the predicted latency, failure probability, and throughput as functions of dista
 
 The choice of isotonic regression encodes a structural prior we are willing to commit to (latency and failure are non-decreasing in distance-to-target, on average) without committing to a parametric family for the shape of the curve. The pool-adjacent-violators algorithm fits each curve in time logarithmic in history size; old events age out so the model tracks current conditions.
 
-Given a target $t$ for a new request, the router selects the neighbor that minimizes an expected-cost score combining the three estimators. A neighbor with too little history falls back to greedy-by-distance until enough events have accumulated.
+Given a target $t$ for a new request, the router selects the neighbor that minimizes an expected-cost score combining the three estimators. A neighbor with too little history falls back to greedy-by-distance until enough events have accumulated. Predictions between fitted points use linear interpolation, and beyond the training-data domain the model extrapolates linearly.
+
+\paragraph{Where the adaptive layer applies.} For ordinary request traffic (\textsf{GET}, \textsf{PUT}, \textsf{SUBSCRIBE}, \textsf{UPDATE}) the adaptive estimator \emph{replaces} the greedy rule of the previous subsection once the local model has enough data: the router picks by predicted cost, not by ring distance. \textsf{CONNECT} is different. \textsf{CONNECT} additionally retains a hard greedy filter (only neighbors strictly closer to the target than the current peer are eligible) and uses a separate isotonic estimator trained on Bernoulli accept/reject outcomes to rank among those eligible candidates. The hard greedy filter keeps joiner traffic moving downhill so the topology-construction logic in \cref{sec:routing} converges; ordinary requests do not need that guarantee and benefit from the broader candidate set.
 
 \input{figures/adaptive-routing.tex}
 
@@ -66,7 +77,9 @@ The requester can verify on arrival that the served code and parameters hash to 
 \subsection{A 24-Hour Snapshot of Routing on the Deployed Network}
 \label{sec:routing-measurement}
 
-This subsection records a single observation of routing behaviour on the deployed network, as a sanity check rather than as a scaling study. The 24-hour window ends 2026-05-24. Network size in that window was 443 distinct active peers in the last 10 minutes, with 604 distinct peer identifiers seen across the full 24 hours (the difference attributable to churn). All peers run with telemetry enabled in the current deployment.
+\input{figures/connection-distance-histogram.tex}
+
+This subsection records a single observation of routing behaviour on the deployed network, as a sanity check rather than as a scaling study. We also include a snapshot of the connection-distance distribution (\cref{fig:connection-distance}), which is the most direct empirical check on the small-world topology the rest of this section constructs. The 24-hour window ends 2026-05-24. Network size in that window was 443 distinct active peers in the last 10 minutes, with 604 distinct peer identifiers seen across the full 24 hours (the difference attributable to churn). All peers run with telemetry enabled in the current deployment.
 
 For each \textsf{GET} and \textsf{PUT} transaction we compute a \emph{path length}: the number of distinct peers seen emitting the corresponding \textsf{*\_request} event for that transaction id, which is the number of peers visited (hops $+ 1$). Statistics over operations whose telemetry reached completion in the window:\footnote{\textsf{UPDATE} (median path length 2, $n = 386$) and \textsf{SUBSCRIBE} (median 1, $n = 5{,}359$) propagate primarily through pre-existing subscription trees rather than fresh greedy routes, so their path lengths reflect tree depth from the subscriber to the nearest hosting peer, not routing-layer hop counts. They are excluded from the table here.}
 

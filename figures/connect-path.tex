@@ -48,7 +48,7 @@
   % Labels
   \node[label] at ($(J)+(0,-0.42)$) {joiner};
   \node[label] at ($(T)+(0,-0.42)$) {target $t$};
-  \node[label, gray!55!black] at ($(P2)!0.5!(P3)+(0,0.4)$) {greedy forwarding};
+  \node[label, gray!55!black] at ($(P2)!0.5!(P3)+(0,0.4)$) {greedy filter + isotonic rank};
 
   % Proximity band label, below the shaded region.
   \node[label, text=orange!80!black, align=center]
@@ -62,14 +62,18 @@
 
 \end{tikzpicture}
 \caption{A single \textsf{CONNECT} from joiner $J$ to its desired
-location $t$. The request is greedily forwarded toward $t$ (solid
-arrows). Once the route enters the proximity band of $t$ (the
-deployed band is $\sim$5\% of the ring, shown shaded), each receiver
-may \emph{additionally} accept the joiner with a proximity-scaled
-probability while still forwarding the request onward (dashed return
-edges). The terminus also applies its acceptance chain
-(\S\ref{sec:routing}). Net result: one \textsf{CONNECT} request can
-establish multiple connections close to $t$, not just one at the
-terminus.}
+location $t$. Each forwarding hop applies a hard greedy filter
+(candidates strictly farther from $t$ than the current peer are
+dropped) and then ranks the survivors with an isotonic-regression
+estimator trained on past forwarding outcomes; the request is sent
+to the best-scoring eligible neighbor (solid arrows). Once the route
+enters the proximity band of $t$ (the deployed band is $\sim$5\% of
+the ring, shown shaded), each receiver may \emph{additionally} accept
+the joiner with a proximity-scaled probability while still forwarding
+the request onward (dashed return edges). The terminus applies its
+acceptance chain (\S\ref{sec:routing}); a rejected terminus may
+re-forward the request uphill for a small budget of hops. Net result:
+one \textsf{CONNECT} request can establish multiple connections close
+to $t$, not just one at the terminus.}
 \label{fig:connect-path}
 \end{figure}

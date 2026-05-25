@@ -17,13 +17,13 @@
   \node[peer] (A) at (0,0) {peer $A$};
   \node[peer] (B) at (8,0) {peer $B$};
 
-  % Lifelines drop down.
-  \draw[lifeline] (A) -- ++(0,-5.0);
-  \draw[lifeline] (B) -- ++(0,-5.0);
+  % Initial states (placed just below each peer box, outside it).
+  \node[state, anchor=north] at (A.south) [yshift=-3pt] {state $\sigma_A$};
+  \node[state, anchor=north] at (B.south) [yshift=-3pt] {state $\sigma_B$};
 
-  % Initial states.
-  \node[state, anchor=north] at ($(A)+(0,-0.05)$) {state $\sigma_A$};
-  \node[state, anchor=north] at ($(B)+(0,-0.05)$) {state $\sigma_B$};
+  % Lifelines drop down from below each peer box.
+  \draw[lifeline] ([yshift=-22pt] A.south) -- ++(0,-4.4);
+  \draw[lifeline] ([yshift=-22pt] B.south) -- ++(0,-4.4);
 
   % Step 1: A computes summary, sends to B.
   \node[state, anchor=east, align=right]
