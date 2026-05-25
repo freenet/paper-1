@@ -1,20 +1,15 @@
-% Subscription tree + UPDATE propagation. For a contract C, peers come in
-% two roles along the tree:
-%   - host/subscriber (orange) -- holds C's state and is on C's subscription
-%     tree. An end-subscriber IS a host (subscribe.rs:430-496 fetches +
-%     announces hosting). The terms are synonymous for endpoints.
-%   - relay (gray) -- forwards UPDATE broadcasts via downstream_subscribers
-%     but does NOT host C and is NOT itself subscribed. See
-%     subscribe/op_ctx_task.rs:1531-1546.
-% An UPDATE injected at any host is merged locally and fans out along tree
-% edges; relays just forward without merging.
+% Subscription tree + UPDATE propagation. Every node in the tree is a
+% peer that hosts the contract; "host" and "subscriber" are synonymous at
+% the peer level (subscribe.rs:430-496: an end-subscriber fetches the
+% contract body and announces hosting). UPDATE broadcasts may also pass
+% through non-hosting forwarders along the path of a prior SUBSCRIBE;
+% that per-contract forwarding role is described in the caption, not
+% drawn here.
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
-    host/.style={circle, draw=black!75, fill=orange!30, minimum size=9mm,
+    host/.style={circle, draw=black!75, fill=orange!28, minimum size=9mm,
                  font=\scriptsize, inner sep=0pt, align=center},
-    relay/.style={circle, draw=black!55, fill=gray!18, minimum size=8mm,
-                  font=\scriptsize, inner sep=0pt, align=center},
     edge/.style={black!55, thick},
     update1/.style={->, >=Stealth, red!75!black, very thick},
     update2/.style={->, >=Stealth, blue!70!black, very thick, dashed},
@@ -28,17 +23,16 @@
   \node[host] (h1) at (-2.0,-1.4) {host};
   \node[host] (h2) at ( 2.0,-1.4) {host};
 
-  % Mid-tier: a mix of hosts (end-subscribers) and relay peers along the
-  % tree path. Relays do not store C; they only forward broadcasts.
-  \node[host]  (a) at (-3.4,-2.8) {host};
-  \node[relay] (b) at (-1.6,-2.8) {relay};
-  \node[host]  (c) at ( 0.5,-2.8) {host};
-  \node[relay] (d) at ( 2.6,-2.8) {relay};
-  \node[host]  (e) at ( 4.2,-2.8) {host};
+  % Mid-tier hosts (end-subscribers).
+  \node[host] (a) at (-3.4,-2.8) {host};
+  \node[host] (b) at (-1.6,-2.8) {host};
+  \node[host] (c) at ( 0.5,-2.8) {host};
+  \node[host] (d) at ( 2.6,-2.8) {host};
+  \node[host] (e) at ( 4.2,-2.8) {host};
 
-  \node[host]  (a1) at (-4.3,-4.1) {host};
-  \node[host]  (b1) at (-1.6,-4.1) {host};
-  \node[host]  (e1) at ( 4.7,-4.1) {host};
+  \node[host] (a1) at (-4.3,-4.1) {host};
+  \node[host] (b1) at (-1.6,-4.1) {host};
+  \node[host] (e1) at ( 4.7,-4.1) {host};
 
   % Tree edges.
   \draw[edge] (root) -- (h1);
@@ -53,7 +47,7 @@
   \draw[edge] (e) -- (e1);
 
   % Update u1 injected at host a1, propagates up through a -> h1 -> root
-  % and out through h1's other branches (b -> b1, c).
+  % and out through h1's other branches.
   \draw[update1] (a1.north east) to[bend left=12] node[label, sloped, above, text=red!75!black] {$u_1$} (a.south);
   \draw[update1] (a.north east) to[bend left=12] (h1.south west);
   \draw[update1] (h1.north) to[bend right=10] (root.south west);
@@ -68,16 +62,10 @@
 
   % Legend (top-right corner of the diagram).
   \begin{scope}[shift={(3.5,0.5)}]
-    \node[host, minimum size=5mm, inner sep=0pt] (lh) at (0,0) {};
-    \node[font=\scriptsize, anchor=west] at (lh.east) [xshift=2pt]
-         {host / subscriber (stores $\mathcal{C}$)};
-    \node[relay, minimum size=5mm, inner sep=0pt] (lr) at (0,-0.45) {};
-    \node[font=\scriptsize, anchor=west] at (lr.east) [xshift=2pt]
-         {relay (forwards only, no state)};
-    \draw[update1, line width=1pt] (-0.2,-0.95) -- (0.25,-0.95)
+    \draw[update1, line width=1pt] (-0.2,0) -- (0.25,0)
          node[font=\scriptsize, text=red!75!black, anchor=west, xshift=2pt]
          {$u_1$ injected lower-left};
-    \draw[update2, line width=1pt] (-0.2,-1.35) -- (0.25,-1.35)
+    \draw[update2, line width=1pt] (-0.2,-0.4) -- (0.25,-0.4)
          node[font=\scriptsize, text=blue!70!black, anchor=west, xshift=2pt]
          {$u_2$ injected lower-right};
   \end{scope}
@@ -88,18 +76,19 @@
   \draw[gray!50!black, ->, >=Stealth, thin] (-3.3,0.2) -- (root.west);
 
 \end{tikzpicture}
-\caption{Subscription tree for a contract $\mathcal{C}$. Orange nodes
-are \emph{hosts}: peers that store $\mathcal{C}$'s state and are
-themselves subscribed (an end-subscriber automatically becomes a
-host, since the subscription requires fetching the contract body).
-Gray nodes are \emph{relays}: they hold a downstream-subscriber
-entry for $\mathcal{C}$ and forward update broadcasts onward, but
-they do not store $\mathcal{C}$'s state and are not themselves
-subscribed. An \textsf{UPDATE} injected at any host is merged
-locally and then propagated outward along tree edges. Two
-concurrent updates $u_1$ and $u_2$ injected at opposite ends travel
-inward, meet at internal hosts, and merge by $\mathcal{C}$'s
-commutative merge; the order in which they arrive does not change
-the final state.}
+\caption{Subscription tree for a contract $\mathcal{C}$. Every node
+shown is a \emph{host} of $\mathcal{C}$: a peer that stores its
+state and is also subscribed (an end-subscriber automatically
+becomes a host, since the subscription requires fetching the
+contract body). An \textsf{UPDATE} injected at any host is merged
+locally and then propagated outward along tree edges using the
+summary/delta protocol. Two concurrent updates $u_1$ and $u_2$
+injected at opposite ends travel inward, meet at internal hosts,
+and merge by $\mathcal{C}$'s commutative merge; the order in which
+they arrive does not change the final state. The implementation
+also forwards update broadcasts through some non-hosting peers
+along the path of a prior \textsf{SUBSCRIBE} request, so the actual
+fan-out graph may include additional forwarding nodes that the
+figure omits for clarity.}
 \label{fig:subscription-tree}
 \end{figure}
