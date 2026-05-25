@@ -103,8 +103,6 @@ The honest-but-stale case is the easy one. Two cases require more care.
 
 \subsection{Subscription Trees}
 
-\input{figures/subscription-tree.tex}
-
 Once a contract is published, peers near $\ell(\contract)$ host its state and additional peers register as subscribers. A subscription forms a soft-state link from the subscriber back toward the contract's home location; collectively these links form a tree rooted near $\ell(\contract)$. An update arriving at any node of the tree is merged into local state and propagated outward along the tree, with each pairwise hop using the summary/delta protocol above.
 
 Because $\merge_\contract$ is commutative, simultaneous updates injected at multiple points of the tree do not require coordination. They propagate along the edges, meet at internal nodes, and merge; the order in which different updates arrive at a given node does not affect its final state. Subscriptions are lease-based: in the deployed configuration a lease lasts 8 minutes and is renewed every 2 minutes by a background task. A subscriber whose lease expires must re-subscribe. The leasing makes the tree self-healing: orphaned branches die out within a small multiple of the lease period.
