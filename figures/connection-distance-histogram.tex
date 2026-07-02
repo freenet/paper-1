@@ -120,11 +120,18 @@ active peers (snapshot taken 2026-05-25, source: the telemetry
 collector at \texttt{nova.locut.us:3133}) contributes one data point;
 bins are linear, width $0.02$. The dashed curve is a Kleinberg $1/d$
 reference normalized to the same total mass. The empirical
-distribution is monotonically decreasing in $d$ at short range and
-stays above the $1/d$ reference in the long-range tail, consistent
-with the active gap-targeting and Kleinberg-style acceptance of
-\cref{sec:routing} steering each peer's neighborhood toward the
-$1/d$ shape Kleinberg's analysis requires. Median connection
-distance is $0.082$; the maximum half-ring distance is $0.5$.}
+distribution is monotonically decreasing in $d$, concentrated at
+short range with a long-range tail --- the qualitative small-world
+shape that the active gap-targeting and Kleinberg-style acceptance of
+\cref{sec:routing} are designed to produce. This is a consistency
+check, not a validation of optimality: Kleinberg's bound is sensitive
+to the tail \emph{exponent}, and greedy routing degrades when the tail
+is too heavy as much as when it is too light. The empirical curve
+lying \emph{above} the $1/d$ reference in the tail therefore indicates
+more long-range mass than a pure $1/d$ law, which is not per se
+better; fitting the exponent and relating it to hop count belongs to
+the scaling study deferred in \cref{sec:routing-measurement}, not to
+this single snapshot. Median connection distance is $0.082$; the
+maximum half-ring distance is $0.5$.}
 \label{fig:connection-distance}
 \end{figure}
