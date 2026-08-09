@@ -1,8 +1,7 @@
-% Adaptive routing: per-neighbor isotonic-regression models of latency vs
-% distance-to-target. The router picks the next hop by combining the
-% predicted latency, failure probability, and throughput from each
-% neighbor's model -- which can differ from greedy-by-distance because a
-% near-but-slow neighbor can lose to a farther-but-fast one.
+% Adaptive routing: the isotonic baseline component of the deployed blended
+% predictor. The router blends these distance-indexed predictions with the
+% Renegade k-nearest-neighbor model before computing expected cost. This panel
+% isolates the monotone baseline so that the fitted curves remain legible.
 %
 % The implementation (sanity/pav.rs via the freenet-core router) does
 % pool-adjacent-violators followed by LINEAR INTERPOLATION between fitted
@@ -79,17 +78,18 @@
        {dots: training points\\dashed: linear extrapolation};
 
 \end{tikzpicture}
-\caption{Adaptive routing. Each neighbor $q$ carries a non-parametric,
-non-decreasing model $\widehat{\tau}_q(d)$ of predicted latency as a
-function of ring distance to the target, fit by isotonic regression
+\caption{The isotonic baseline used by adaptive routing. Each neighbor $q$
+has a non-parametric, non-decreasing latency estimate
+$\widehat{\tau}_q(d)$ as a function of ring distance to the target, fit by isotonic regression
 (pool-adjacent-violators) on the history of routing events. The
 fitted points (dots) are connected by linear interpolation; beyond
 the training-data domain the model extrapolates linearly (dashed).
-Two more such models per neighbor track predicted failure probability
-and throughput; one is shown for clarity. For a request to a target
+Two more isotonic baselines track predicted failure probability and
+throughput; one outcome is shown for clarity. For a request to a target
 at distance $d_t$, the router reads each neighbor's prediction at
 $d_t$ and picks the neighbor that minimizes the combined expected
-cost. The chosen neighbor need not be the one topologically closest
-to the target.}
+cost after blending these baselines with the k-nearest-neighbor predictions
+described in the text. The chosen neighbor need not be the one topologically
+closest to the target.}
 \label{fig:adaptive-routing}
 \end{figure}

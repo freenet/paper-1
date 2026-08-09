@@ -36,7 +36,7 @@ A small set of operations connect these artifacts. We describe them informally h
 \begin{description}[leftmargin=1.4em, style=nextline, itemsep=2pt]
   \item[\textsf{PUT}] Publish a contract: insert or update its state at the peers near $\ell(\contract)$.
   \item[\textsf{GET}] Retrieve a contract's current state by key.
-  \item[\textsf{UPDATE}] Submit an update to a contract. The update is merged into existing replicas using the contract's merge function and propagated outward through the subscription tree.
+  \item[\textsf{UPDATE}] Submit an update to a contract. The update is merged into existing replicas using the contract's merge function and propagated through the mesh of neighboring co-hosts.
   \item[\textsf{SUBSCRIBE}] Register interest in future state changes to a contract.
   \item[\textsf{CONNECT}] Establish a peering relationship with the network as a new node.
 \end{description}

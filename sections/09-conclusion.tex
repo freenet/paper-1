@@ -1,6 +1,6 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-Applications on Freenet define their state algebra in sandboxed WebAssembly. A contract-supplied summary/delta protocol synchronizes that state according to application semantics. The underlying small-world ring shapes long-range links through gap-based \textsf{CONNECT} targeting and Kleinberg-style acceptance scoring, while a per-neighbor performance model informs forwarding. Delegates isolate private state and sensitive operations behind a platform-enforced trust boundary.
+Applications on Freenet define their state algebra in sandboxed WebAssembly. A contract-supplied summary/delta protocol synchronizes that state across a mesh of neighboring co-hosts, while demand-gated subscription leases keep hosting aligned with active use. The underlying small-world ring protects a nearest successor and predecessor while shaping its remaining links through gap-based \textsf{CONNECT} targeting and Kleinberg-style acceptance scoring. Forwarding uses an isotonic distance baseline blended with a k-nearest-neighbor predictor. Delegates isolate private state and sensitive operations behind a platform-enforced trust boundary.
 
 This architecture targets decentralized group chat, collaborative documents, social feeds, reputation systems, and other applications with mergeable state. Several mechanisms remain experimental or unimplemented. In particular, evaluating asymptotic scaling will require measurements across network sizes rather than further design analysis alone.

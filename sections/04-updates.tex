@@ -1,7 +1,7 @@
 \section{How Updates Move}
 \label{sec:updates}
 
-This section describes the algebra each contract carries, the synchronization protocol that propagates it efficiently across replicas, and the subscription tree along which updates flow.
+This section describes the algebra each contract carries, the synchronization protocol that propagates it efficiently across replicas, the co-host mesh through which updates flow, and the leases that keep hosting aligned with demand.
 
 \subsection{Contract State as an Idempotent Commutative Monoid}
 
@@ -101,13 +101,13 @@ The basic protocol reconciles honest replicas with stale state. Approximate summ
 
 \paragraph{Malicious peers.} A peer that supplies a deliberately malformed summary, or returns a delta that violates the validity predicate, is treated like any other source of invalid state. The receiver applies $\valid_\contract$ to the merged result; if the result fails validity, the delta is rejected. A more subtle attack is for a peer to supply a delta that is valid but withholding (claiming to be up to date when it is not). The protocol cannot distinguish such a peer from one that has simply not yet received the missing updates; the replication factor across multiple peers near $\ell(\contract)$ is the structural defense, not the sync protocol itself.
 
-\subsection{Subscription Trees}
+\subsection{Subscriptions and the Co-Host Mesh}
 
-Once a contract is published, peers near $\ell(\contract)$ host its state and additional peers register as subscribers. A subscription forms a soft-state link from the subscriber back toward the contract's home location; collectively these links form a tree rooted near $\ell(\contract)$. An update arriving at any node of the tree is merged into local state and propagated outward along the tree, with each pairwise hop using the summary/delta protocol above.
+Once a contract is published, each hosting peer advertises that fact to its connected neighbors. An update arriving at any host is merged into local state and fanned out to neighbors that also advertise themselves as hosts of the contract, with each pairwise exchange using the summary/delta protocol above. These advertised co-host links form the update mesh. The live fan-out target set is derived from co-host advertisements rather than from a separate subscriber forwarding list; periodic reconciliation of the advertisements repairs a missed announcement or retraction.
 
-A host-advertisement mesh provides a second propagation path. A peer that begins hosting a contract announces it to its neighbors, independently of subscriptions. Update targets are the deduplicated union of subscribers and neighboring hosts known through this mesh. Subscriptions are explicit and lease-bound, while hosting follows cache admission and eviction. The mesh prevents an unsubscribed host from silently serving stale state.
+Subscriptions serve a different purpose: they express demand and maintain soft-state paths from interested peers toward the contract's home location. A peer on such a path hosts and advertises the contract, so the path becomes part of the same co-host mesh as every other replica. Hosting follows demand and eviction, while subscriptions are explicit and lease-bound.
 
-Because $\merge_\contract$ is commutative, simultaneous updates injected at multiple points of the tree do not require coordination. They propagate along the edges, meet at internal nodes, and merge; the order in which different updates arrive at a given node does not affect its final state. Subscriptions are lease-based: in the deployed configuration a lease lasts 8 minutes and a background task renews it every 2 minutes --- but only while the contract is still \emph{in use} at that peer, meaning it has a local client subscription or a registered downstream subscriber. A hosting peer with no remaining interest simply stops renewing; its lease lapses and the branch collapses inward toward $\ell(\contract)$. A subscriber whose lease expires must re-subscribe. This interest-gating is what makes the tree self-healing and keeps the live subscription set proportional to active demand rather than to accumulated cache: orphaned branches die out within a small multiple of the lease period.
+Because $\merge_\contract$ is commutative, simultaneous updates injected at multiple points of the mesh do not require coordination. They propagate across co-host links and merge; the order in which different updates arrive at a given node does not affect its final state. In the deployed configuration a subscription lease lasts 8 minutes and a background task renews it every 2 minutes --- but only while the contract is still \emph{in use} at that peer, meaning it has a local client subscription, a registered downstream subscriber, or recent genuine \textsf{GET} or \textsf{PUT} access. A hosting peer with no remaining interest stops renewing; its lease lapses and the demand path collapses inward toward $\ell(\contract)$. A subscriber whose lease expires must re-subscribe. This interest-gating keeps the live subscription set proportional to active demand rather than to accumulated cache: orphaned paths die out within a small multiple of the lease period.
 
 \subsection{Relationship to Other Mechanisms}
 

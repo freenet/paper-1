@@ -23,13 +23,15 @@ The following table reports the current status of the mechanisms described in th
 \toprule
 Mechanism & Status & Notes \\
 \midrule
-Small-world ring topology & Deployed & Live network $\approx 440$ active peers \\
+Small-world ring topology & Deployed & Nearest-neighbor lattice plus Kleinberg-style long links \\
 Greedy forwarding, HTL-bounded & Deployed & HTL cap = 10; greedy/performance-ranked every hop \\
 Two-stage CONNECT acceptance & Deployed & Greedy forward, accept-and-forward in 5\% band, Kleinberg-scored at terminus \\
-Adaptive isotonic-regression routing & Deployed & Per-neighbor distance-indexed model \\
+Adaptive ensemble routing & Deployed & Weighted blend of isotonic and Renegade k-nearest-neighbor predictions \\
 Summary/delta synchronization & Deployed & Per-contract, application-defined \\
-Subscription trees with leases & Deployed & 8-min lease, 2-min renewal, interest-gated \\
-Neighbor host-advertisement mesh & Deployed & Update fan-out and terminus lookup \\
+Summary-first \textsf{PUT} & Deployed & Probe and delta for existing state; full-state fallback \\
+Demand paths with leases & Deployed & 8-min lease, 2-min renewal, interest-gated \\
+Neighbor co-host mesh & Deployed & Update fan-out and terminus lookup from host advertisements \\
+Non-idempotency containment & Deployed & Bounded commit and egress suppression after detection \\
 Contract WebAssembly execution & Deployed & Wasmtime, fuel + memory limits \\
 Delegates (local, secret state) & Deployed & Used by River chat \citep{river} \\
 Delegate cross-device sync via shared-secret contract & Partial & Encrypted-contract primitives exist; end-to-end delegate flow not wired up \\
@@ -75,7 +77,7 @@ The following questions require further implementation or empirical evaluation.
 
 \begin{enumerate}[leftmargin=1.4em, itemsep=2pt]
   \item \textbf{Scaling characterization.} The single 24-hour data point in \cref{sec:routing-measurement} is consistent with logarithmic-diameter routing at the deployed network size. Characterization requires measurements across orders of magnitude in $N$. The current deployment cannot provide that range, and the deterministic simulation harness must be extended to emit hop-count-versus-$N$ data before it can serve as an alternative.
-  \item \textbf{Failure modes of contract-defined merge.} A contract whose merge is not associative or idempotent does not converge. The platform exposes the resulting divergence but takes no corrective action. Better diagnostics and, where feasible, platform-checked contract invariants remain open work. A near-term improvement would be a property-based test harness that generates states and updates to exercise associativity, commutativity, idempotence, and sync soundness (\cref{prop:sync}). Such a harness cannot constrain a malicious author, but it would provide honest authors with a repeatable CI workflow.
+  \item \textbf{Failure modes of contract-defined merge.} A contract whose merge is not associative or idempotent does not converge. The runtime detects some observable non-idempotency by reapplying identical inputs and checking whether the result reaches a fixpoint. When detected, it suppresses commits and contract egress for a bounded interval; repeated detections lengthen that interval. This is containment, not verification: it does not establish associativity, commutativity, general idempotence, or sync soundness. Better diagnostics and broader platform-checked invariants remain open work. A near-term improvement would be a property-based test harness that generates states and updates to exercise associativity, commutativity, idempotence, and sync soundness (\cref{prop:sync}). Such a harness cannot constrain a malicious author, but it would provide honest authors with a repeatable CI workflow.
   \item \textbf{Congestion control.} The fixed-rate default remains temporary while the alternative controllers are adapted and evaluated for this workload.
   \item \textbf{Sybil-resistant identity.} Ghost Keys demonstrates an application-layer approach, but no general mechanism exists. Identity and reputation contracts are routed through the location layer they are intended to secure. An adversary with enough address prefixes to crowd a contract's location can serve poisoned reads and prevent honest writes from reaching its canonical replicas (\cref{sec:trust}). Prefix collisions also reduce the geographic diversity of honest peers. Resolving this circular dependency requires ring-distance separation among replicas of safety-critical contracts, demonstrable geographic diversity near their locations, or out-of-band trust anchors for the contracts that bootstrap the rest.
   \item \textbf{Incentive / abuse layer.} The network needs a mechanism to resist coordinated denial of service without centralized admission control or excessive barriers to joining.
