@@ -5,7 +5,7 @@ The modern web is built on infrastructure owned by a small number of companies. 
 
 Two broad families of decentralized systems have been deployed at meaningful scale, and neither is a good substrate for interactive applications.
 
-\paragraph{Content-addressed storage.} The original Freenet \citep{clarke2001freenet} and IPFS \citep{benet2014ipfs} provide name-by-hash access to immutable data. Mutable state is whatever the application chooses to layer on top. This is a poor fit for any system whose primary action is mutation: chat rooms, document editing, social feeds. In practice the application reinvents a consistency story per use case, often inconsistently across clients.
+\paragraph{Content-addressed storage.} The original Freenet \citep{clarke2001freenet} and IPFS \citep{benet2014ipfs} provide name-by-hash access to immutable data. Applications must add their own mechanisms for mutable state. Chat rooms, document editors, and social feeds consequently implement consistency independently, often with different behavior across clients.
 
 \paragraph{Blockchains.} Ethereum \citep{wood2014ethereum} and successor smart-contract platforms provide programmable mutable state, but their consistency model is global linearizable consensus. Every state transition is ordered with every other transition, and replicated by every participating node. The latency, throughput, and replication cost that follow are reasonable for value-transfer and authoritative ledgers, but they are too expensive for the interactive applications that constitute the bulk of the web.
 

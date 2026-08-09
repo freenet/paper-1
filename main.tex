@@ -74,8 +74,8 @@
 Freenet is a peer-to-peer platform for building real-time decentralized
 applications without global consensus. Its core abstraction is a \emph{contract}:
 a WebAssembly module that defines both the public state of an application and the
-merge semantics used to reconcile replicas. Rather than imposing a single
-consistency model, the platform requires each contract to expose an idempotent
+merge semantics used to reconcile replicas. The platform does not impose a single
+consistency model. Instead, each contract exposes an idempotent
 commutative merge operation (equivalently, a join-semilattice) and an
 application-defined summary/delta protocol for efficient synchronization.
 
@@ -90,10 +90,9 @@ This architecture targets decentralized applications such as group chat,
 collaborative documents, social feeds, and reputation systems, where
 availability and application-defined convergence are preferable to global
 linearizability.
-The paper describes the architecture as currently implemented in the
-freenet-core reference runtime, includes a 24-hour snapshot of routing
-behaviour on the deployed network, and is explicit about which mechanisms
-are deployed, which remain experimental, and which are open problems.
+The paper describes the architecture implemented in the freenet-core reference
+runtime and presents a 24-hour snapshot of routing behavior on the deployed
+network. It also identifies deployed, experimental, and unimplemented mechanisms.
 \end{abstract}
 
 \vspace{0.5em}

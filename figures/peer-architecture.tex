@@ -27,18 +27,18 @@
     >=Stealth,
 ]
   % --- Browser on the left ---
-  \node[ui] (ui) at (0,0) {UI bundle\\\scriptsize(HTML+JS+WASM)};
+  \node[ui] (ui) at (-0.4,0) {UI bundle\\\scriptsize(HTML+JS+WASM)};
   \node[label, anchor=south] at (ui.north) {browser};
 
   % --- Freenet Core in the middle ---
-  \node[core] (core) at (5.4,0) {};
+  \node[core] (core) at (5.8,0) {};
   \node[font=\small\bfseries, anchor=north]
        at (core.north) [yshift=-3pt] {Freenet Core};
   \node[label, anchor=north] at (core.north) [yshift=-19pt] {(Rust, async)};
 
   % Contracts and delegates as a row inside the core.
-  \node[wasm] (c1) at (4.4,-0.1)  {contract};
-  \node[wasm] (d1) at (6.4,-0.1) {delegate};
+  \node[wasm] (c1) at (4.8,-0.1)  {contract};
+  \node[wasm] (d1) at (6.8,-0.1) {delegate};
 
   % Transport row attached to the bottom of the core.
   \node[transport, anchor=south]
@@ -46,11 +46,16 @@
        {transport: UDP, NAT hole-punch, X25519+AEAD};
 
   % --- Rest of network on the right ---
-  \node[netcloud, right=14mm of core.east] (net) {rest of network};
+  \node[netcloud, right=18mm of core.east] (net) {rest of network};
 
   % --- Wires ---
-  \draw[arr] (ui.east) -- node[label, above=-2pt] {WebSocket} (core.west);
-  \draw[arr] (t.east) -- node[label, above=-2pt] {UDP} (net.west);
+  \draw[arr] (ui.east) --
+       node[label, fill=white, inner sep=1.5pt, midway, above=3pt]
+       {WebSocket} (core.west);
+  \coordinate (udpturn) at ([xshift=10mm] t.east);
+  \draw[arr] (t.east) --
+       node[label, fill=white, inner sep=1pt, midway, below=2pt] {UDP}
+       (udpturn) |- (net.west);
 
 \end{tikzpicture}
 \caption{What runs in and around a single peer. The Freenet Core is

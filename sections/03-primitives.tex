@@ -21,7 +21,7 @@ for a cryptographic hash $H$. The two-stage form lets a client that already hold
 
 \subsection{Delegates}
 
-A \emph{delegate} is a WebAssembly module that runs on a single user's device, inside the local Freenet Core. It holds private \emph{secret state} (sandboxed by the core) and responds to messages from user interfaces, contracts, and other delegates. The core attaches a verified sender identifier to every inbound message, so a delegate can apply policy based on sender identity in addition to message content. Delegates are local; they do not appear on the ring. The trust boundary they enforce and the cross-device replication story are described in \cref{sec:trust}.
+A \emph{delegate} is a WebAssembly module that runs on a single user's device, inside the local Freenet Core. It holds private \emph{secret state} (sandboxed by the core) and responds to messages from user interfaces, contracts, and other delegates. The core attaches a verified sender identifier to every inbound message, so a delegate can apply policy based on sender identity in addition to message content. Delegates are local; they do not appear on the ring. Their trust boundary and cross-device replication mechanism are described in \cref{sec:trust}.
 
 \subsection{User Interfaces}
 
