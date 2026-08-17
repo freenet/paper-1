@@ -39,6 +39,8 @@ For a finite multiset of valid updates $u_1, \ldots, u_n \in \statespace_\contra
 
 A bounded signed log (for example, one that keeps the most recent $N$ records) requires an eviction function determined by the merged set. If eviction instead depends on arrival order, the merge ceases to be idempotent. Contract authors are responsible for maintaining this property.
 
+\paragraph{Discarding requires a permanent condition.} The eviction rule above generalizes. Whenever a contract discards part of a merged result --- an entry that fails a predicate, a record whose author is not authorized --- the condition it discards on must be one that further growth cannot reverse. Validity may depend on the rest of the state, so a component invalid at $\sigma$ can become valid at some $\sigma' \sqsupseteq \sigma$; discarding it at $\sigma$ makes the result depend on the order in which the two arrived, and nothing revisits the decision later. The observed-remove set above is the sound shape: a tombstone is permanent, so materializing $E \setminus T$ discards on a condition that cannot flip. A record dropped because its author has not yet been merged is the unsound shape, while the same rule applied to an author who has been tombstoned is sound --- the two are distinguished by whether the absence is final, not by whether the author is currently present. Where the condition is transient, the component must be retained and its visibility derived from the current state, or the update rejected in full so that its sender re-offers it.
+
 \subsection{Where This Sits in the Design Space}
 
 Bayou \citep{terry1995bayou} introduced application-supplied merge procedures in 1995, and CouchDB, Riak, and Git's merge drivers also expose conflict resolution to application code. Freenet combines this approach with constraints required by an untrusted peer-to-peer environment.
@@ -79,6 +81,14 @@ For all $\sigma_A, \sigma_B \in \statespace_\contract$, let $s = \summarize_\con
 \end{property}
 
 \noindent Equivalently, applying $\delta$ at $\sigma_B$ brings $\sigma_B$ at least as far up the lattice as $\sigma_A$ would have if merged in full. The platform does not verify this property; the contract is responsible for it.
+
+\paragraph{Deltas outlive their summaries.} \cref{prop:sync} fixes $\sigma_B$, but $s$ is a summary that $B$ published earlier, and $\delta$ may be applied after $B$ has merged further updates. The requirement is therefore the stronger one obtained by quantifying over every state above $\sigma_B$: for all $\sigma_B' \sqsupseteq \sigma_B$,
+\[
+  \applydelta_\contract(\sigma_B', \delta) \;\merge_\contract\; \sigma_A
+  \;=\;
+  \applydelta_\contract(\sigma_B', \delta).
+\]
+A contract meets this by computing $\delta$ from what $s$ shows the recipient to lack: the summary is what keeps $\delta$ small, and the lattice order is what keeps it applicable once the recipient has advanced. A delta whose effect depends on the recipient being exactly at $\sigma_B$ is a patch rather than a delta in this sense, and out-of-order delivery will misapply it.
 
 \subsection{The Two-Step Sync Protocol}
 
