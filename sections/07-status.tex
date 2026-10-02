@@ -34,7 +34,7 @@ Contract WebAssembly execution & Deployed & Wasmtime, time and memory limits \\
 Delegates (local, secret state) & Deployed & Used by River chat \citep{river} \\
 Delegate contract operations & Implemented & Requests, change notifications \\
 Delegate background execution & Implemented & User-consented, periodic \\
-Delegate cross-device sync & Open & Shared-secret contract pattern \\
+Delegate cross-device sync & Open & Manual encrypted export and import today \\
 NAT hole-punching transport & Deployed & UDP, authenticated encryption \\
 Congestion control & Deployed & Fixed-rate default; LEDBAT++ and BBR experimental \\
 Deterministic simulation testing & Deployed & Turmoil-based \citep{turmoil} \\
@@ -57,7 +57,7 @@ The limitation extends beyond currency. A reputation system that only \emph{accu
 
 \paragraph{Abuse-resistant open posting.} A purely open contract is simple to write as a set under union and equally simple to flood. Practical contracts in this class restrict writes to signed records by approved keys, charge a proof-of-work fee per update, or require credentials issued by a reputation contract. The per-neighbor limits of \cref{sec:trust} cap what one attacker can push through one peer, but they do not stop a distributed flood from many cheap identities or low-rate abuse that stays within per-peer limits, and the platform has no other spam defense.
 
-\paragraph{Durable storage of cold state.} Contract state persists only while some peer retains it, and eviction (\cref{sec:updates}) removes the least-demanded contracts first: those with no readers or subscribers. The platform does not recruit a replacement when a host evicts a contract, so a contract nobody reads or subscribes to can disappear from every host, recoverable only by a new \textsf{PUT} from a party that still holds its state. Dormant collaborative documents, unpolled inboxes, and identity records of inactive users may stay cold for long periods.
+\paragraph{Durable storage of cold state.} Contract state persists only while some peer retains it, and eviction (\cref{sec:updates}) removes the least-demanded contracts first: those with no readers or subscribers. The platform does not recruit a replacement when a host evicts a contract, so a contract nobody reads or subscribes to can disappear from every host, recoverable only by a new \textsf{PUT} from a party that still holds its state. The platform therefore provides no durability guarantee for cold state, and dormant collaborative documents, unpolled inboxes, and identity records of inactive users may stay cold for long periods.
 
 \subsection{Open Problems}
 
@@ -65,7 +65,7 @@ The limitation extends beyond currency. A reputation system that only \emph{accu
   \item \textbf{Scaling characterization.} The measurement in \cref{sec:routing-measurement} is consistent with logarithmic-diameter routing at one network size. Characterizing scaling requires measurements across orders of magnitude in $N$, which the current deployment cannot provide and the simulation harness does not yet produce. The routing estimator's structure was likewise selected in simulation, and the contribution of its per-contract failure term has not yet been established on production traffic.
   \item \textbf{Enforcing the merge laws.} Containment and conformance testing (\cref{sec:conformance}) detect some violations, but neither removes a faulty contract from the network. Running conformance testing across the network, propagating its evidence so that other peers can re-verify it, and ceasing to host contracts with confirmed violations remain open. Coverage is also incomplete. A contract that rejects the merge of two individually valid states is reported as inconclusive, although the rejection means the replicas cannot converge, and very large states are not tested. Testing cannot constrain a malicious author, but it gives honest authors a repeatable check.
   \item \textbf{Congestion control} suited to heterogeneous peer-to-peer links.
-  \item \textbf{Sybil-resistant identity.} Identity and reputation contracts are routed through the location layer they are meant to secure (\cref{sec:trust}). Breaking this circularity requires ring separation among replicas of safety-critical contracts, demonstrable diversity near their locations, or out-of-band trust anchors.
+  \item \textbf{Sybil-resistant identity.} Identity and reputation contracts are routed through the location layer they are meant to secure (\cref{sec:trust}). Breaking this circularity requires ring separation among replicas of safety-critical contracts, demonstrable diversity near their locations, or out-of-band trust anchors. Spreading peers that share an address prefix without restoring the freedom to choose locations is also open.
   \item \textbf{Incentive and abuse layer.} The network needs a way to resist coordinated denial of service without centralized admission control or excessive barriers to joining.
   \item \textbf{Durability of cold state.} Maintaining a minimum replica count independently of demand, through active repair, incentivized pinning, or archival contracts, without creating an unbounded free-storage abuse surface.
 \end{enumerate}
