@@ -1,9 +1,11 @@
-% Adaptive routing: the distance prior and per-neighbor corrections of the
-% deployed hierarchical estimator (freenet-core router/hierarchical.rs). Each
-% neighbor's latency prediction is the shared isotonic distance curve plus
-% that neighbor's shrunk offset (and, not drawn, a per-region offset). The
-% curves are drawn schematically as piecewise-linear polylines through fitted
-% points (dots); dashed segments mark the region beyond the observed data.
+% Adaptive routing: per-neighbor latency predictions of the deployed
+% hierarchical estimator (freenet-core router/hierarchical.rs). Latency is
+% modeled on a log scale, so each neighbor's prediction is the shared isotonic
+% distance curve multiplied by a neighbor-specific factor (its shrunk offset in
+% log space); the per-arc offset is not drawn. The shared curve's fitted
+% points (dots) are common to every neighbor. Beyond the fitted range the
+% log-scale curves hold their end value rather than extrapolating, so the
+% dashed segments are flat. Drawn schematically.
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -11,80 +13,66 @@
     curveA/.style={blue!65!black, thick},
     curveB/.style={orange!75!black, thick},
     curveC/.style={green!55!black, thick},
-    fitdotA/.style={circle, fill=blue!65!black, inner sep=0.7pt},
-    fitdotB/.style={circle, fill=orange!75!black, inner sep=0.7pt},
-    fitdotC/.style={circle, fill=green!55!black, inner sep=0.7pt},
+    fitdot/.style={circle, fill=white, draw=black, thin, inner sep=1.1pt},
     pickdot/.style={circle, fill, inner sep=1.2pt},
     label/.style={font=\scriptsize},
     >=Stealth,
 ]
-  % Axes (single panel: latency vs distance).
   \draw[axis] (0,0) -- (7.0,0) node[right, label] {distance to target $d$};
   \draw[axis] (0,0) -- (0,3.6) node[above, label, align=center]
        {predicted\\latency $\widehat{\tau}_q(d)$};
 
-  % Each neighbor's curve is a piecewise-linear polyline through fitted
-  % points (dots), monotone non-decreasing thanks to PAV. The training
-  % domain is a subinterval; beyond it the curve continues linearly
-  % (extrapolated, shown dashed).
+  % Neighbor q_A: shared curve scaled by 1.0.
+  \draw[curveA] (0.5,0.60) -- (1.4,0.75) -- (2.6,0.95) -- (3.8,1.15) -- (5.0,1.40);
+  \draw[curveA, dashed] (0.0,0.60) -- (0.5,0.60);
+  \draw[curveA, dashed] (5.0,1.40) -- (6.7,1.40);
+  \node[label, text=blue!65!black, anchor=west] at (6.75,1.40) {$\widehat{\tau}_{q_A}$ (fast)};
 
-  % Neighbor q_A: a fast/long-haul neighbor -- low latency even at large d.
-  \draw[curveA] (0.6,0.55) -- (1.4,0.70) -- (2.6,0.95) -- (4.0,1.15) -- (5.2,1.45);
-  \draw[curveA, dashed] (0.0,0.40) -- (0.6,0.55);
-  \draw[curveA, dashed] (5.2,1.45) -- (6.7,1.70);
-  \foreach \x/\y in {0.6/0.55, 1.4/0.70, 2.6/0.95, 4.0/1.15, 5.2/1.45}
-    \node[fitdotA] at (\x,\y) {};
-  \node[label, text=blue!65!black, anchor=west] at (6.75,1.75) {$\widehat{\tau}_{q_A}$ (fast)};
+  % Neighbor q_B: shared curve scaled by 1.6.
+  \draw[curveB] (0.5,0.96) -- (1.4,1.20) -- (2.6,1.52) -- (3.8,1.84) -- (5.0,2.24);
+  \draw[curveB, dashed] (0.0,0.96) -- (0.5,0.96);
+  \draw[curveB, dashed] (5.0,2.24) -- (6.7,2.24);
+  \node[label, text=orange!75!black, anchor=west] at (6.75,2.24) {$\widehat{\tau}_{q_B}$ (average)};
 
-  % Neighbor q_B: average -- moderate latency rising more steeply.
-  \draw[curveB] (0.5,1.10) -- (1.4,1.45) -- (2.6,1.85) -- (3.8,2.20) -- (5.0,2.55);
-  \draw[curveB, dashed] (0.0,0.90) -- (0.5,1.10);
-  \draw[curveB, dashed] (5.0,2.55) -- (6.7,2.95);
-  \foreach \x/\y in {0.5/1.10, 1.4/1.45, 2.6/1.85, 3.8/2.20, 5.0/2.55}
-    \node[fitdotB] at (\x,\y) {};
-  \node[label, text=orange!75!black, anchor=west] at (6.75,3.00) {$\widehat{\tau}_{q_B}$ (average)};
+  % Neighbor q_C: shared curve scaled by 2.2.
+  \draw[curveC] (0.5,1.32) -- (1.4,1.65) -- (2.6,2.09) -- (3.8,2.53) -- (5.0,3.08);
+  \draw[curveC, dashed] (0.0,1.32) -- (0.5,1.32);
+  \draw[curveC, dashed] (5.0,3.08) -- (6.7,3.08);
+  \node[label, text=green!55!black, anchor=west] at (6.75,3.08) {$\widehat{\tau}_{q_C}$ (slow)};
 
-  % Neighbor q_C: high-latency even close.
-  \draw[curveC] (0.4,1.50) -- (1.4,1.95) -- (2.6,2.45) -- (3.6,2.90) -- (4.8,3.25);
-  \draw[curveC, dashed] (0.0,1.30) -- (0.4,1.50);
-  \draw[curveC, dashed] (4.8,3.25) -- (6.7,3.55);
-  \foreach \x/\y in {0.4/1.50, 1.4/1.95, 2.6/2.45, 3.6/2.90, 4.8/3.25}
-    \node[fitdotC] at (\x,\y) {};
-  \node[label, text=green!55!black, anchor=west] at (6.75,3.40) {$\widehat{\tau}_{q_C}$ (slow)};
+  % Shared fitted points (breakpoints of the isotonic curve), on q_A's curve.
+  \foreach \x/\y in {0.5/0.6, 1.4/0.75, 2.6/0.95, 3.8/1.15, 5.0/1.4}
+    \node[fitdot] at (\x,\y) {};
 
   % Target distance vertical guide.
   \draw[gray!60, thin, dashed] (3.0,0) -- (3.0,3.4)
        node[label, gray!45!black, anchor=south] at (3.0,3.4) {target distance $d_t$};
+  \node[pickdot, blue!65!black] at (3.0,1.017) {};
+  \node[pickdot, orange!75!black] at (3.0,1.627) {};
+  \node[pickdot, green!55!black] at (3.0,2.237) {};
 
-  % Dots at each curve's value at d_t (interpolated).
-  \node[pickdot, blue!65!black] at (3.0,1.007) {};
-  \node[pickdot, orange!75!black] at (3.0,1.967) {};
-  \node[pickdot, green!55!black]  at (3.0,2.63)  {};
-
-  % Annotation: q_A is chosen.
   \node[label, gray!35!black, align=center]
-       at (5.6,0.40) (choosenote) {choose $q_A$ for\\target at $d_t$};
+       at (3.95,0.3) (choosenote) {choose $q_A$ for\\target at $d_t$};
   \draw[->, >=Stealth, gray!50!black, thin]
-       (choosenote.west) -- (3.15,1.007);
+       (choosenote.north west) -- (3.08,1.017);
 
-  % Legend (top-left, with white fill to avoid overlapping axis labels).
   \node[label, gray!35!black, anchor=north west, align=left,
         fill=white, inner sep=2pt, draw=gray!30, rounded corners=2pt]
-       at (0.2,3.1)
-       {dots: fitted points\\dashed: beyond observed data};
+       at (5.05,1.12)
+       {dots: shared fitted points\\dashed: beyond observed data};
 
 \end{tikzpicture}
 \caption{Per-neighbor latency predictions used by adaptive routing.
 Each neighbor $q$'s prediction $\widehat{\tau}_q(d)$ is a non-decreasing
-function of ring distance to the target: a distance curve fit by isotonic
-regression (pool-adjacent-violators) over all neighbors' routing events,
-shifted by an offset for $q$ that is shrunk toward the network-wide value in
-proportion to how little evidence supports it. Dots mark fitted points;
-dashed segments lie beyond the observed data. Two further predictions track
-failure probability and throughput; one outcome is shown for clarity. For a
-request to a target at distance $d_t$, the router reads each neighbor's
-predictions at $d_t$ and picks the neighbor that minimizes the combined
-expected cost. The chosen neighbor need not be the one topologically closest
-to the target.}
+function of ring distance to the target: one distance curve, fit by isotonic
+regression (pool-adjacent-violators) over all neighbors' routing events, scaled
+for each neighbor by a factor that is shrunk toward the network-wide value in
+proportion to how little evidence supports it. Dots mark the shared fitted
+points; beyond the observed distances each curve holds its end value. Two
+further predictions track failure probability and throughput; one outcome is
+shown for clarity. For a request to a target at distance $d_t$, the router
+reads each neighbor's predictions at $d_t$ and picks the neighbor that
+minimizes the combined expected cost. The chosen neighbor need not be the one
+topologically closest to the target.}
 \label{fig:adaptive-routing}
 \end{figure}
