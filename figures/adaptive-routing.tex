@@ -1,13 +1,9 @@
-% Adaptive routing: the isotonic baseline component of the deployed blended
-% predictor. The router blends these distance-indexed predictions with the
-% Renegade k-nearest-neighbor model before computing expected cost. This panel
-% isolates the monotone baseline so that the fitted curves remain legible.
-%
-% The implementation (sanity/pav.rs via the freenet-core router) does
-% pool-adjacent-violators followed by LINEAR INTERPOLATION between fitted
-% points and LINEAR EXTRAPOLATION beyond the training-data domain. The
-% curves here therefore appear as piecewise-linear polylines through the
-% observed training points (dots), not as step functions.
+% Adaptive routing: the distance prior and per-neighbor corrections of the
+% deployed hierarchical estimator (freenet-core router/hierarchical.rs). Each
+% neighbor's latency prediction is the shared isotonic distance curve plus
+% that neighbor's shrunk offset (and, not drawn, a per-region offset). The
+% curves are drawn schematically as piecewise-linear polylines through fitted
+% points (dots); dashed segments mark the region beyond the observed data.
 \begin{figure}[t]
 \centering
 \begin{tikzpicture}[
@@ -75,21 +71,20 @@
   \node[label, gray!35!black, anchor=north west, align=left,
         fill=white, inner sep=2pt, draw=gray!30, rounded corners=2pt]
        at (0.2,3.1)
-       {dots: training points\\dashed: linear extrapolation};
+       {dots: fitted points\\dashed: beyond observed data};
 
 \end{tikzpicture}
-\caption{The isotonic baseline used by adaptive routing. Each neighbor $q$
-has a non-parametric, non-decreasing latency estimate
-$\widehat{\tau}_q(d)$ as a function of ring distance to the target, fit by isotonic regression
-(pool-adjacent-violators) on the history of routing events. The
-fitted points (dots) are connected by linear interpolation; beyond
-the training-data domain the model extrapolates linearly (dashed).
-Two more isotonic baselines track predicted failure probability and
-throughput; one outcome is shown for clarity. For a request to a target
-at distance $d_t$, the router reads each neighbor's prediction at
-$d_t$ and picks the neighbor that minimizes the combined expected
-cost after blending these baselines with the k-nearest-neighbor predictions
-described in the text. The chosen neighbor need not be the one topologically
-closest to the target.}
+\caption{Per-neighbor latency predictions used by adaptive routing.
+Each neighbor $q$'s prediction $\widehat{\tau}_q(d)$ is a non-decreasing
+function of ring distance to the target: a distance curve fit by isotonic
+regression (pool-adjacent-violators) over all neighbors' routing events,
+shifted by an offset for $q$ that is shrunk toward the network-wide value in
+proportion to how little evidence supports it. Dots mark fitted points;
+dashed segments lie beyond the observed data. Two further predictions track
+failure probability and throughput; one outcome is shown for clarity. For a
+request to a target at distance $d_t$, the router reads each neighbor's
+predictions at $d_t$ and picks the neighbor that minimizes the combined
+expected cost. The chosen neighbor need not be the one topologically closest
+to the target.}
 \label{fig:adaptive-routing}
 \end{figure}

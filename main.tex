@@ -83,8 +83,8 @@ Each contract has a location on a one-dimensional ring derived from the hash
 of its code and parameters, and is replicated on peers near that location. Requests are routed using a per-neighbor,
 distance-indexed performance model rather than topological distance alone. For
 private state, the platform provides \emph{delegates}: local WebAssembly agents
-that hold secrets on the user's device and interact with contracts and other
-software through attributed messages.
+that hold secrets on the user's device, act on contracts on the user's behalf, and
+exchange attributed messages with user interfaces and other delegates.
 
 This architecture targets decentralized applications such as group chat,
 collaborative documents, social feeds, and reputation systems, where
