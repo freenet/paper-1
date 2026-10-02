@@ -9,7 +9,7 @@ A \emph{peer} is an instance of the Freenet Core running on some host. Each peer
 \[
   d(x, y) \;=\; \min\!\left\{|x - y|,\ 1 - |x - y|\right\}.
 \]
-A peer's location is derived deterministically from its external network address; the exact derivation and its security implications are discussed in \cref{sec:trust}. Each peer maintains a set of \emph{neighbor} connections, bounded between configurable minimum and maximum sizes (typically 25 and 200). Neighbor relations are reorganized over time by the topology rule described in \cref{sec:routing}.
+A peer's location is derived deterministically from its external network address (\cref{sec:trust}). Each peer maintains a set of \emph{neighbor} connections, bounded between configurable minimum and maximum sizes. Neighbor relations are reorganized over time by the topology rule described in \cref{sec:routing}.
 
 \subsection{Contracts}
 
@@ -17,11 +17,11 @@ A \emph{contract} $\contract$ is a pair $(\mathrm{code}, \mathrm{params})$, wher
 \[
   k(\contract) = H\bigl(H(\mathrm{code}) \,\|\, \mathrm{params}\bigr)
 \]
-for a cryptographic hash $H$. The two-stage form lets a client that already holds $H(\mathrm{code})$ derive the key for a new contract from new parameters without re-hashing the full WebAssembly module, which may be several megabytes. The contract's \emph{location} $\ell(\contract) \in [0, 1)$ is derived from $k(\contract)$ in the same way as a peer location. Each contract has a \emph{state} $\sigma \in \statespace_\contract$, replicated across peers near $\ell(\contract)$ on the ring. The contract's code defines $\statespace_\contract$, the validity predicate $\valid_\contract$, the merge operation $\merge_\contract$, and the summary/delta synchronization functions (all detailed in \cref{sec:updates}). Contracts are public: their state is readable by any peer that can route to $\ell(\contract)$.
+for a cryptographic hash $H$. The two-stage form lets a client that already holds $H(\mathrm{code})$ derive the key for a new contract from new parameters without re-hashing the full WebAssembly module. The contract's \emph{location} $\ell(\contract) \in [0, 1)$ is derived from $k(\contract)$ in the same way as a peer location. Each contract has a \emph{state} $\sigma \in \statespace_\contract$, replicated across peers near $\ell(\contract)$ on the ring. The contract's code defines $\statespace_\contract$, the validity predicate $\valid_\contract$, the merge operation $\merge_\contract$, and the summary/delta synchronization functions (all detailed in \cref{sec:updates}). Contracts are public: their state is readable by any peer that can route to $\ell(\contract)$. Because contracts, delegates, and user interfaces are all addressed by hash, the platform needs no version negotiation or upgrade protocol: a new version is published under a new key, and the old key keeps working as long as anyone hosts it.
 
 \subsection{Delegates}
 
-A \emph{delegate} is a WebAssembly module that runs on a single user's device, inside the local Freenet Core. It holds private \emph{secret state} (sandboxed by the core) and responds to messages from user interfaces and other delegates. The core attaches a sender identifier to each of these messages, so a delegate can apply policy based on sender identity in addition to message content. A delegate can also read, publish, subscribe to, and update contracts, and, with the user's consent, run on a schedule when no user interface is open. Delegates are local; they do not appear on the ring. Their trust boundary and the intended cross-device replication pattern are described in \cref{sec:trust}.
+A \emph{delegate} is a WebAssembly module that runs on a single user's device, inside the local Freenet Core. It holds private \emph{secret state} (sandboxed by the core) and responds to messages from user interfaces and other delegates. Each such message carries a sender identifier attached by the core. A delegate can also read, publish, subscribe to, and update contracts, and, with the user's consent, run on a schedule when no user interface is open. Delegates are local; they do not appear on the ring. Their trust boundary and the intended cross-device replication pattern are described in \cref{sec:trust}.
 
 \subsection{User Interfaces}
 
@@ -31,12 +31,12 @@ A \emph{user interface} is a web frontend (HTML, JavaScript, WebAssembly) delive
 
 \subsection{Operations}
 
-A small set of operations connect these artifacts. We describe them informally here; their detailed lifecycles appear in \cref{sec:routing}.
+A small set of operations connect these artifacts. We describe them informally here; their lifecycles appear in \cref{sec:updates,sec:routing}.
 
 \begin{description}[leftmargin=1.4em, style=nextline, itemsep=2pt]
   \item[\textsf{PUT}] Publish a contract: insert or update its state at the peers near $\ell(\contract)$.
   \item[\textsf{GET}] Retrieve a contract's current state by key.
-  \item[\textsf{UPDATE}] Submit an update to a contract. The update is merged into existing replicas using the contract's merge function and propagated through the mesh of neighboring co-hosts.
+  \item[\textsf{UPDATE}] Submit an update to a contract. The update is merged into existing replicas using the contract's merge function and propagated to the other peers hosting the contract.
   \item[\textsf{SUBSCRIBE}] Register interest in future state changes to a contract.
   \item[\textsf{CONNECT}] Establish a peering relationship with the network as a new node.
 \end{description}
