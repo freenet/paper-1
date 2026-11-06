@@ -29,7 +29,8 @@ Leased subscriptions & Deployed & Renewed only while the contract is in use \\
 Co-host mesh and anti-entropy & Deployed & Live fan-out plus periodic digest comparison \\
 Demand-ordered eviction & Deployed & Memory-derived budget \\
 Non-idempotency containment & Deployed & Temporary suppression after detection \\
-Merge-law conformance testing & Implemented & Local and opt-in on nodes; findings not enforced \\
+Skipping already-merged payloads & Implemented & Keyed hash per payload; reset when state is replaced \\
+Merge-law conformance testing & Implemented & Author tool; opt-in reporting on nodes \\
 Contract WebAssembly execution & Deployed & Wasmtime, time and memory limits \\
 Delegates (local, secret state) & Deployed & Used by River chat \citep{river} \\
 Delegate contract operations & Implemented & Requests, change notifications \\
@@ -63,7 +64,7 @@ The limitation extends beyond currency. A reputation system that only \emph{accu
 
 \begin{enumerate}[leftmargin=1.4em, itemsep=2pt]
   \item \textbf{Scaling characterization.} The measurement in \cref{sec:routing-measurement} is consistent with logarithmic-diameter routing at one network size. Characterizing scaling requires measurements across orders of magnitude in $N$, which the current deployment cannot provide and the simulation harness does not yet produce. The routing estimator's structure was likewise selected in simulation, and the contribution of its per-contract failure term has not yet been established on production traffic.
-  \item \textbf{Enforcing the merge laws.} Containment and conformance testing (\cref{sec:conformance}) detect some violations, but neither removes a faulty contract from the network. Running conformance testing across the network, propagating its evidence so that other peers can re-verify it, and ceasing to host contracts with confirmed violations remain open. Coverage is also incomplete. A contract that rejects the merge of two individually valid states is reported as inconclusive, although the rejection means the replicas cannot converge, and very large states are not tested. Testing cannot constrain a malicious author, but it gives honest authors a repeatable check.
+  \item \textbf{Contracts that break the merge laws.} The responses in \cref{sec:conformance} limit the work a violating contract costs its hosts, but nothing repairs it: replicas whose merge depends on arrival order can disagree permanently while exchanging no traffic, and no peer observes the disagreement. Verifier coverage is also incomplete, and very large states are not tested. Testing cannot constrain a malicious author, but it gives honest authors a repeatable check.
   \item \textbf{Congestion control} suited to heterogeneous peer-to-peer links.
   \item \textbf{Sybil-resistant identity.} Identity and reputation contracts are routed through the location layer they are meant to secure (\cref{sec:trust}). Breaking this circularity requires ring separation among replicas of safety-critical contracts, demonstrable diversity near their locations, or out-of-band trust anchors. Spreading peers that share an address prefix without restoring the freedom to choose locations is also open.
   \item \textbf{Incentive and abuse layer.} The network needs a way to resist coordinated denial of service without centralized admission control or excessive barriers to joining.
